@@ -1,13 +1,24 @@
 
 import sys
-sys.path.append(r'../lib')
+import clr
+import os
+print(os.getcwd())
+#import System
+from System import String
 
+sys.path.append(r'../lib')
+sys.path.append(r'lib')
+
+
+#import lib.MC2000B_COMMAND_LIB as mc2000b
 import MC2000B_COMMAND_LIB as mc2000b
-from newportxps import NewportXPS, XPSException
+print("dde")
+#from newportxps import NewportXPS, XPSException
+import newportxps
 
 import traceback
 from enum import Enum
-
+print("test")
 class FTSState(Enum):
     NOTINIT = 0
     INIT = 1
@@ -263,16 +274,16 @@ class AlicptFTS:
 
     ## TODO
     def check_state(self, command):
-        if command == 'initialize':
-        elif command == 'configure':
-        elif command == 'scan':
-        elif command == 'save':
-        elif command == 'reboot':
-        elif command == 'stop':
-        elif command == 'pause':
-        elif command == 'resume':
-        elif command == 'status':
-        elif command == 'close':
+        if command == 'initialize': pass
+        elif command == 'configure': pass
+        elif command == 'scan': pass
+        elif command == 'save': pass
+        elif command == 'reboot': pass
+        elif command == 'stop': pass
+        elif command == 'pause': pass
+        elif command == 'resume': pass
+        elif command == 'status': pass
+        elif command == 'close': pass
         else:
             raise ValueError('Error: Invalid command')
 

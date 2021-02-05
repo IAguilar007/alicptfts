@@ -1,22 +1,36 @@
 # Part of the code is adapated from Matthew Newville's package
 # https://github.com/pyepics/newportxps 
 
+
+import sys
+sys.path.append(r'../lib')
+sys.path.append(r'lib')
+
+#sys.path.append(r'C:\Users\d3a2s\Source\Repos\shu-xiao\alicptfts\lib')
+import clr
+import System
 import os
 import time
 from collections import OrderedDict
 from configparser import ConfigParser
-from sftpwrapper import SFTPWrapper
+#from sftpwrapper import SFTPWrapper
+import sftpwrapper
 
-import sys
-sys.path.append(r'../lib')
+print(os.getcwd())
 
 # Load Python.Net
 # CLR namespaces are recognized as Python packages
 import clr
+clr.AddReference("System.Windows.Forms")
+clr.AddReference("System.Drawing")
+
+
+# import pythonnet
 from System import String
 from System.Collections import *
-clr.AddReference('Newport.XPS.CommandInterface')
+clr.AddReference(r'Newport.XPS.CommandInterface')
 from CommandInterfaceXPS import *
+print('load assembly')
 
 import numpy as np
 
