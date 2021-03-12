@@ -3,6 +3,7 @@
 
 
 import sys
+from enum import Enum
 sys.path.append(r'../lib')
 sys.path.append(r'lib')
 
@@ -36,6 +37,11 @@ import numpy as np
 
 class XPSException(Exception):
     pass
+
+class FTSmotion(Enum):
+    PointingLinear = 0
+    PointingRotary = 1
+    MovingLinear = 2
 
 class NewportXPS:
     def __init__(self, host, port=5001, timeout=1000,
@@ -460,7 +466,7 @@ class NewportXPS:
         
     def check_error(self, res, err_string):
         if res != 0:
-            raise XPSException(err_string)
+          raise XPSException(err_string)
 
     def save_file(self, rm_path, rm_fname, fname):
         """Save remote file to the current path"""
@@ -579,6 +585,8 @@ class NewportXPS:
         # the following inputs: "PointingLinear", "PointingRotary",
         # and "Moving Linear". The returned name could be used to
         # Call XPS functions
+
+        ## exception
         pass
 
     def get_positioner(self, grp_name):
@@ -587,6 +595,8 @@ class NewportXPS:
         # correspond to the following inputs: "PointingLinear", 
         # "PointingRotary", and "Moving Linear". The returned name 
         # could be used to call XPS functions
+
+        ## exception
         pass
 
     def stop_all(self):

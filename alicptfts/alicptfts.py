@@ -12,26 +12,32 @@ sys.path.append(r'lib')
 
 #import lib.MC2000B_COMMAND_LIB as mc2000b
 import MC2000B_COMMAND_LIB as mc2000b
-print("dde")
-#from newportxps import NewportXPS, XPSException
+#print("dde")
+from newportxps import NewportXPS, XPSException
 import newportxps
 
 import traceback
 from enum import Enum
 print("test")
-class FTSState(Enum):
-    NOTINIT = 0
-    INIT = 1
-    CONFIG = 2
-    SCANNING = 3
-    PAUSE = 4
-    FINISH = 5
 
-class IR518:
+class FTSState(Enum):
+    NOTINIT  = 0
+    INIT     = 1
+    CONFIG   = 2
+    SCANNING = 3
+    PAUSE    = 4
+    FINISH   = 5
+
+class FTSmotion(Enum):
+    PointingLinear = 0
+    PointingRotary = 1
+    MovingLinear = 2
+    
+class MC2000B:
     def __init__(self):
         pass
 
-class MC2000B:
+class IR518:
     def __init__(self):
         pass
 
@@ -291,7 +297,7 @@ if __name__ == '__main__':
     fts = AlicptFTS()
     fts.initialize()
     fts.status()
-    fts.configure(position=[50.0, 35.0], relative=False)
+    fts.configure(positions=[50.0, 35.0], relative=False)
     timestamps = fts.scan()
     fts.save(timestamps=timestamps)
     fts.close()
