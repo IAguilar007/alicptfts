@@ -45,7 +45,7 @@ class AlicptFTS:
     def __init__(self):
         self.source = None
         self.chopper = None
-        self.newportxps = None
+        self.newportxps = None 
         self.state = FTSState.NOTINIT
 
     def initialize(self, **kwargs):

@@ -68,10 +68,12 @@ class NewportXPS:
 
         # Connect the controller and stages
         try:
+            print('Start XPS connection')
             self.connect()
         except Exception:
             raise
         try:
+            print('Start initailize')
             self.initialize()
         except Exception:
             raise
@@ -304,7 +306,10 @@ class NewportXPS:
 
         timestamps[0] = time.time()                             # First timestamp
                                                                 # beginning of the scan
-        res_run, err_run = self._xps.GatheringRun(gathering_params[0], gathering_params[1], '')
+        ## res_run, err_run = self._xps.GatheringRun(gathering_params[0], gathering_params[1], '')
+        res_run, err_run = self._xps.GatheringRun(gathering_params[0], gathering_params[1], 20000)
+                                                  # from programer's manual: (int SocketID, int DataNumber, int Divisor)
+                                                  # Divisor of servo frequecy <= 20000
                                                   # num of data sets & time interval in servo cycles
                                                   # TODO: find the right/appropriate numbers
         try:

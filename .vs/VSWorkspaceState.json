@@ -2,8 +2,8 @@
   "ExpandedNodes": [
     "",
     "\\alicptfts",
-    "\\lib"
+    "\\alicptfts\\UnitTest"
   ],
-  "SelectedNode": "\\alicptfts\\newportxps.py",
-  "PreviewInSolutionExplorer": false
+  "SelectedNode": "\\alicptfts\\UnitTest\\connectTest.py",
+  "PreviewInSolutionExplorer": true
 }
