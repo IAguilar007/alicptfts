@@ -1,11 +1,18 @@
 import sys
 from enum import Enum
+import os
 #sys.path.append(r'../lib')
 #sys.path.append(r'lib')
-sys.path.append(r'C:\Users\d3a2s\Source\Repos\shu-xiao\alicptfts\lib')
-sys.path.append(r'C:\Users\d3a2s\Source\Repos\shu-xiao\alicptfts')
 
-#sys.path.append(r'../../')
+projpath = os.getcwd()
+projpath = projpath.split('alicptfts')[0] + 'alicptfts'
+
+
+sys.path.append(projpath+'\lib')
+sys.path.append(projpath)
+#sys.path.append(r'C:\Users\d3a2s\Source\Repos\shu-xiao\alicptfts\lib')
+#sys.path.append(r'C:\Users\d3a2s\Source\Repos\shu-xiao\alicptfts')
+
 
 
 

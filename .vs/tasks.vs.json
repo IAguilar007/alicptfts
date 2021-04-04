@@ -10,6 +10,11 @@
       "taskLabel": "工作-alicptfts",
       "appliesTo": "/",
       "type": "launch"
+    },
+    {
+      "taskLabel": "工作-alicptfts",
+      "appliesTo": "/",
+      "type": "launch"
     }
   ]
 }
