@@ -50,7 +50,11 @@ if (op != 0): raise ValueError('Error: Could not open XPS for test\nError code: 
 else: print("Status: connecting to the XPS controller")
 
 # reference code: XPS Unified Programmer's Manual.pdf, Ch.9
-myXPS.Login('Administrator','Administrator')  ## not sure whether it's required
+# myXPS.Login('Administrator','Administrator')
+op = myXPS.Login('Administrator','Administrator')  ## not sure whether it's required
+if (op != 0): raise ValueError('Error: Could login\nError code: {}'.format(op))
+else: print("Status: Login XPS")
+
 op = myXPS.KillAll()
 if (op != 0): raise ValueError('Error: Could reset group status\nError code: {}'.format(op))
 else: print("Status: Reset All Groups")
