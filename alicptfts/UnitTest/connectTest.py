@@ -1,20 +1,12 @@
 import sys
 from enum import Enum
 import os
-#sys.path.append(r'../lib')
-#sys.path.append(r'lib')
 
 projpath = os.getcwd()
 projpath = projpath.split('alicptfts')[0] + 'alicptfts'
 
-
 sys.path.append(projpath+'\lib')
 sys.path.append(projpath)
-#sys.path.append(r'C:\Users\d3a2s\Source\Repos\shu-xiao\alicptfts\lib')
-#sys.path.append(r'C:\Users\d3a2s\Source\Repos\shu-xiao\alicptfts')
-
-
-
 
 import clr
 import System
@@ -32,40 +24,41 @@ clr.AddReference("System.Drawing")
 
 
 # import pythonnet
-from System import String
+from System import  Array
 from System.Collections import *
 clr.AddReference(r'Newport.XPS.CommandInterface')
 from CommandInterfaceXPS import *
-print('load assembly')
-
 import numpy as np
+
+print('load assembly')
 
 # reference code: XPS Unified Programmer's Manual.pdf, p9
 myXPS = XPS()
+op = 0
+
 # op = myXPS.OpenInstrument(host, port,timeout)
 hostIP = '192.168.254.254'
 op = myXPS.OpenInstrument(hostIP, 5001, 1000)
-
 if (op != 0): raise ValueError('Error: Could not open XPS for test\nError code: {}'.format(op))
 else: print("Status: connecting to the XPS controller")
 
 # reference code: XPS Unified Programmer's Manual.pdf, Ch.9
-# myXPS.Login('Administrator','Administrator')
-op = myXPS.Login('Administrator','Administrator')  ## not sure whether it's required
+op = myXPS.Login('Administrator','Administrator','DUMMY') ## not sure whether it's required
 if (op != 0): raise ValueError('Error: Could login\nError code: {}'.format(op))
 else: print("Status: Login XPS")
 
-op = myXPS.KillAll()
+op = myXPS.KillAll('DUMMY')
 if (op != 0): raise ValueError('Error: Could reset group status\nError code: {}'.format(op))
 else: print("Status: Reset All Groups")
 
 # group: XPS Unified Programmer's Manual.pdf, Ch.5
-op = myXPS.GroupInitialize('SingleAxis')
-op = myXPS.GroupHomeSearch('SingleAxis')
+op = myXPS.GroupInitialize('SingleAxis','DUMMY')
+op = myXPS.GroupHomeSearch('SingleAxis','DUMMY')
 if (op != 0): raise ValueError('Error: Cannot initialize group\nError code: {}'.format(op))
 else: print('Status: Initialize group')
 
-op = mmyXPS.GroupMoveAbsolute('SingleAxis',[0,0],1)
+pos1 = Array[float]([0,0])
+op = mmyXPS.GroupMoveAbsolute('SingleAxis',pos1,1,'DUMMY')
 if (op != 0): raise ValueError('GroupMoveAbsolute Error\nError code: {}'.format(op))
 else: print('Status: Reset the position to origin')
 '''
@@ -82,7 +75,8 @@ Close XPS Connection
 code=myxps.CloseInstrument;
 
 '''
-op = mmyXPS.GroupMoveRelative('SingleAxis',[100,0],1)
+pos2 = Array[float]([100,0])
+op = mmyXPS.GroupMoveRelative('SingleAxis',pos2,1,'DUMMY')
 if (op != 0): raise ValueError('GroupMoveRelative Error\nError code: {}'.format(op))
 else: print('Status: move to +100 mm')
 op = myXPS.CloseInstrument()

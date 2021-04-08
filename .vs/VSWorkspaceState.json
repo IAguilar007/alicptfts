@@ -2,8 +2,9 @@
   "ExpandedNodes": [
     "",
     "\\alicptfts",
-    "\\alicptfts\\UnitTest"
+    "\\alicptfts\\UnitTest",
+    "\\lib"
   ],
-  "SelectedNode": "\\alicptfts\\UnitTest\\connectTest.py",
+  "SelectedNode": "\\readme",
   "PreviewInSolutionExplorer": true
 }
