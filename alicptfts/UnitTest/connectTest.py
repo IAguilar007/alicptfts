@@ -52,23 +52,27 @@ if (op[0] != 0): raise ValueError('Error: Could not reset group status\nError co
 else: print("Status: Reset All Groups")
 
 # group: XPS Unified Programmer's Manual.pdf, Ch.5
-#groupName = 'Spindle'    # rotary motor
-groupName = 'SingleAxis'  # linear motor
+groupName = 'Group1'  # linear motor
+
 op = myXPS.GroupInitialize(groupName,'DUMMY')
 if (op[0] != 0): raise ValueError('Error: Could not initialize group\nError code: {}'.format(op))
 else: print('Status: Initialize group')
+
+sleep(1)
+
 op = myXPS.GroupHomeSearch(groupName,'DUMMY')
 if (op[0] != 0): raise ValueError('Error: Could not search home group\nError code: {}'.format(op))
 else: print('Status: Search home group')
 
 pos1 = Array[float]([0,0])
-op = mmyXPS.GroupMoveAbsolute(groupName,pos1,1,'DUMMY')
+op = myXPS.GroupMoveAbsolute(groupName,pos1,1,'DUMMY')
 if (op[0] != 0): raise ValueError('GroupMoveAbsolute Error\nError code: {}'.format(op))
 else: print('Status: Reset the position to origin')
 
 sleep(1)
+
 pos2 = Array[float]([100,0])
-op = mmyXPS.GroupMoveRelative(groupName,pos2,1,'DUMMY')
+op = myXPS.GroupMoveRelative(groupName,pos2,1,'DUMMY')
 if (op[0] != 0): raise ValueError('GroupMoveRelative Error\nError code: {}'.format(op))
 else: print('Status: move to +100 mm')
 
