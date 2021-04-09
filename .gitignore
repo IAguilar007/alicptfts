@@ -10,3 +10,4 @@ example.py
 *.un~
 *~
 
+.vs/
