@@ -6,9 +6,11 @@ projpath = os.getcwd()
 projpath = projpath.split('alicptfts')[0] + 'alicptfts'
 
 sys.path.append(projpath+'\lib')
-sys.path.append(projpath)
+#sys.path.append(projpath)
 
 import clr
+clr.AddReference("System.Windows.Forms")
+clr.AddReference("System.Drawing")
 import System
 import os
 import time
@@ -17,12 +19,6 @@ from configparser import ConfigParser
 from time import sleep
 #from sftpwrapper import SFTPWrapper
 #import sftpwrapper
-
-
-import clr
-clr.AddReference("System.Windows.Forms")
-clr.AddReference("System.Drawing")
-
 
 # import pythonnet
 from System import  Array
