@@ -12,13 +12,10 @@ sys.path.append(r'lib')
 
 #import lib.MC2000B_COMMAND_LIB as mc2000b
 import MC2000B_COMMAND_LIB as mc2000b
-#print("dde")
 from newportxps import NewportXPS, XPSException
-import newportxps
 
 import traceback
-from enum import Enum
-print("test")
+from enum import Enums
 
 class FTSState(Enum):
     NOTINIT  = 0
@@ -48,7 +45,7 @@ class AlicptFTS:
         self.newportxps = None 
         self.state = FTSState.NOTINIT
 
-    def initialize(self, **kwargs):
+    def initialize(self, hostIP='192.168.254.254',username='Administrator',password='Administrator',port=5001, timeout=10):
         """Establish connection with each part.
         
         Parameters
@@ -77,15 +74,18 @@ class AlicptFTS:
         self.chopper = MC2000B()
         if self.newportxps is None:     # Start a new connection
             try:
-                self.newportxps = NewportXPS(**kwargs)
+                self.newportxps = NewportXPS(hostIP, username, password,port,timeout)
             except Exception:
                 pass
         else:                           # From a reboot
             try:
-                self.newportxps.initialize()
+                #self.newportxps.initialize()
+                self.newportxps.connect()      # not tested
             except Exception:
                 pass
 
+        self.newportxps.initialize_allgroups()
+        self.newportxps.home_allgroups()
         self.state = FTSState.INIT
 
     def configure(self, positions, relative=False):
@@ -190,7 +190,7 @@ class AlicptFTS:
         """Reboot the system to the NOTINIT state"""
         self.check_state('reboot')
         try:
-            self.newportxps.reboot()
+            self.newportxps.reboot(reconnect=False, timeout=120.0)
         except Exception:
             pass
 
@@ -202,7 +202,8 @@ class AlicptFTS:
         """
         self.check_state('stop')
         try:
-            self.newportxps.stop_all()
+            #self.newportxps.stop_all()
+            self.newportxps._xps.KillAll(self.newportxps._sid)
         except Exception:
             pass
     
@@ -213,7 +214,7 @@ class AlicptFTS:
         """
         self.check_state('pause')
         try:
-            self.newportxps.pause_all()
+            self.newportxps.abort_group('Group1')  # Group name is not determined
         except Exception:
             pass
 

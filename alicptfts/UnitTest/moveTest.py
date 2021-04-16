@@ -30,9 +30,9 @@ xps.move_stage('Group2.Pos',-150,1)
 xps.move_stage('Group3.Pos',90,1)
 
 print('Status: Print Current Position')
-print('Stage1: {:.2f}'.format(xps.get_stage_position(Group1.Pos)))
-print('Stage2: {:.2f}'.format(xps.get_stage_position(Group2.Pos)))
-print('Stage3: {:.2f}'.format(xps.get_stage_position(Group3.Pos)))
+print('Stage1: {:.2f}'.format(xps.get_stage_position('Group1.Pos')))
+print('Stage2: {:.2f}'.format(xps.get_stage_position('Group2.Pos')))
+print('Stage3: {:.2f}'.format(xps.get_stage_position('Group3.Pos')))
 
 print()
 print('Test Finish!')
