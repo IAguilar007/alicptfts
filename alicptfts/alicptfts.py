@@ -68,7 +68,7 @@ class AlicptFTS:
         """
         self.check_state('initialize')
 
-        # TODO
+        
         # Current implementation considers only the XPS controller
         self.source = IR518()
         self.chopper = MC2000B()
@@ -243,8 +243,9 @@ class AlicptFTS:
             self.check_state('close')
         except Exception:
             pass
-        try:
-            self.newportxps.close()
+        try:             # copy from reboot function
+            self.newportxps.ftpconn.close()
+            self.newportxps._xps.CloseAllOtherSockets(self.newportxps._sid)
         except Exception:
             pass
 
