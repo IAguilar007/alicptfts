@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 import sys
 import clr
@@ -12,12 +13,13 @@ sys.path.append(r'lib')
 
 #import lib.MC2000B_COMMAND_LIB as mc2000b
 import MC2000B_COMMAND_LIB as mc2000b
-from newportxps import NewportXPS, XPSException
+from newportxps import NewportXPS#, XPSException
 
 import traceback
-from enum import Enums
+#from enum import Enums
+import enum
 
-class FTSState(Enum):
+class FTSState(enum.Enum):
     NOTINIT  = 0
     INIT     = 1
     CONFIG   = 2
@@ -25,7 +27,7 @@ class FTSState(Enum):
     PAUSE    = 4
     FINISH   = 5
 
-class FTSmotion(Enum):
+class FTSmotion(enum.Enum):
     PointingLinear = 0
     PointingRotary = 1
     MovingLinear = 2
@@ -232,7 +234,7 @@ class AlicptFTS:
         except Exception:
             pass
         try:
-            status_report = self.newportxps.status()
+            status_report = self.newportxps.status_report()
             print(status_report)
         except Exception:
             pass
@@ -297,9 +299,26 @@ class AlicptFTS:
 
 if __name__ == '__main__':
     fts = AlicptFTS()
+    fts.initialize('192.168.254.254','Administrator','Administrator')
+    print('Status: Finish initialization')
+    fts.status()
+    print('Test REBOOT')
+    fts.reboot()
+    fts.status()
+    print('Test Finished')
+    print('Disconnect...')
+    fts.close()
+    print('Done')
+
+
+
+
+    '''
+    fts = AlicptFTS()
     fts.initialize()
     fts.status()
     fts.configure(positions=[50.0, 35.0], relative=False)
     timestamps = fts.scan()
     fts.save(timestamps=timestamps)
     fts.close()
+    '''
