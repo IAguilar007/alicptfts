@@ -18,7 +18,12 @@ print()
 groupname = 'Group1'
 pos = 'Pos'
 print('Status: Define Trajectory ('+groupname+'.'+pos+')')
-xps.define_line_trajectories(pos,groupname,150,250,10,10)
+'''
+define_line_trajectories(self, axis, group=None,
+                                 start=0, stop=1, step=0.001, scantime=10.0,
+                                 accel=None, upload=True, verbose=False):
+                                     '''
+xps.define_line_trajectories(pos,groupname,150,250,20,10)
 print('Status: Running trajectory')
 xps.run_trajectory('forward')
 # xps.run_trajectory('backward')
