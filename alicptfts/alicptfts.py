@@ -12,7 +12,7 @@ sys.path.append(r'lib')
 
 
 #import lib.MC2000B_COMMAND_LIB as mc2000b
-import MC2000B_COMMAND_LIB as mc2000b
+# import MC2000B_COMMAND_LIB as mc2000b
 from newportxps import NewportXPS#, XPSException
 
 import traceback
