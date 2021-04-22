@@ -17,11 +17,22 @@ print(xps.get_hardware_status())
 print()
 groupname = 'Group1'
 pos = 'Pos'
-#print('Status: Define Trajectory ('+groupname+'.'+pos+')')
 dataCol = xps._xps.GatheringListGet(xps._sid)
+print(datacol)
+print('generate motion parameters')
+varlist = []
+for i in ['Position','Velocity','Acceleration']:
+    for j in ['Current','Setpoint']:
+        varlist.append(j+i)
+
 print('Data record variables:')
-print(dataCol)
-xps._xps.GatheringConfigurationSet(dataCol)
+print(varlist)
+dataCol = []
+for i in range(3):
+    for j in varlist:
+        dataCol.append('Group'+str(i+1)+'.Pos.'+j)
+
+xps._xps.GatheringConfigurationSet(xps._sid,dataCol)
 xps.move_stage('Group1.Pos',250)
 
 print('Status: Finish config setting')

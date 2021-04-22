@@ -47,7 +47,7 @@ class AlicptFTS:
         self.newportxps = None 
         self.state = FTSState.NOTINIT
 
-    def initialize(self, hostIP='192.168.254.254',username='Administrator',password='Administrator',port=5001, timeout=10):
+    def initialize(self, hostIP='192.168.254.254',username='Administrator',password='Administrator',port=5001, timeout=100):
         """Establish connection with each part.
         
         Parameters
@@ -77,17 +77,28 @@ class AlicptFTS:
         if self.newportxps is None:     # Start a new connection
             try:
                 self.newportxps = NewportXPS(hostIP, username, password,port,timeout)
+                print(xps.status_report())
+
             except Exception:
+                print('Exception')
+                pass
+            except:
+                print('Unkown reason break')
                 pass
         else:                           # From a reboot
             try:
+                print('reboot')
                 #self.newportxps.initialize()
                 self.newportxps.connect()      # not tested
             except Exception:
                 pass
 
+        print('STATUS: Initialize all groups')
         self.newportxps.initialize_allgroups()
+        print(xps.status_report())
+        print('STATUS: Initialize all groups')
         self.newportxps.home_allgroups()
+        print(xps.status_report())
         self.state = FTSState.INIT
 
     def configure(self, positions, relative=False):
