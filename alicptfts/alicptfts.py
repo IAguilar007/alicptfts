@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
 import sys
-import clr
 import os
 print(os.getcwd())
 #import System
-from System import String
+#from System import String
 
 sys.path.append(r'../lib')
 sys.path.append(r'lib')
@@ -13,10 +12,9 @@ sys.path.append(r'lib')
 
 #import lib.MC2000B_COMMAND_LIB as mc2000b
 # import MC2000B_COMMAND_LIB as mc2000b
-from newportxps import NewportXPS#, XPSException
+from newportxps import NewportXPS
+from newportxps.XPS_C8_drivers import XPSException
 
-import traceback
-#from enum import Enums
 import enum
 
 class FTSState(enum.Enum):
@@ -47,7 +45,7 @@ class AlicptFTS:
         self.newportxps = None 
         self.state = FTSState.NOTINIT
 
-    def initialize(self, hostIP='192.168.254.254',username='Administrator',password='Administrator',port=5001, timeout=100):
+    def initialize(self, host='192.168.254.254',username='Administrator',password='Administrator',port=5001, timeout=100):
         """Establish connection with each part.
         
         Parameters
@@ -74,17 +72,17 @@ class AlicptFTS:
         # Current implementation considers only the XPS controller
         self.source = IR518()
         self.chopper = MC2000B()
-        if self.newportxps is None:     # Start a new connection
+        if (self.newportxps is None):     # Start a new connection
             try:
-                self.newportxps = NewportXPS(hostIP, username, password,port,timeout)
+                self.newportxps = NewportXPS(host, username, password,port,timeout)
                 print(xps.status_report())
 
-            except Exception:
-                print('Exception')
-                pass
+            except XPSException:
+                print('Cannot Connect to XPS')
+                raise
             except:
-                print('Unkown reason break')
-                pass
+                print('Unkown System Reason')
+                raise
         else:                           # From a reboot
             try:
                 print('reboot')
