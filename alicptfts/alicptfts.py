@@ -308,7 +308,7 @@ class AlicptFTS:
 
 if __name__ == '__main__':
     fts = AlicptFTS()
-    fts.initialize('192.168.254.254','Administrator','Administrator')
+    fts.initialize('192.168.0.254','Administrator','Administrator')
     print('Status: Finish initialization')
     fts.status()
     print('Test REBOOT')

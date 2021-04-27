@@ -33,7 +33,7 @@ print('Loading assembly')
 myXPS = XPS()
 
 # op = myXPS.OpenInstrument(host, port,timeout)
-hostIP = '192.168.254.254'
+hostIP = '192.168.0.254'
 op = myXPS.OpenInstrument(hostIP, 5001, 1000)
 if (op != 0): raise ValueError('Error: Could not open XPS for test\nError code: {}'.format(op))
 else: print("Status: connecting to the XPS controller")

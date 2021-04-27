@@ -1,7 +1,7 @@
 from newportxps import NewportXPS
 
 
-xps = NewportXPS('192.168.254.254', username='Administrator', password='Administrator')
+xps = NewportXPS('192.168.0.254', username='Administrator', password='Administrator')
 xps.initialize_allgroups()
 xps.home_allgroups()
 

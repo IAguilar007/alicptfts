@@ -1,6 +1,6 @@
 from newportxps import NewportXPS
 
-xps = NewportXPS('192.168.254.254', username='Administrator', password='Administrator')
+xps = NewportXPS('192.168.0.254', username='Administrator', password='Administrator')
 xps.initialize_allgroups()
 xps.home_allgroups()
 
@@ -18,7 +18,7 @@ print()
 groupname = 'Group1'
 pos = 'Pos'
 dataCol = xps._xps.GatheringListGet(xps._sid)
-print(datacol)
+print(dataCol)
 print('generate motion parameters')
 varlist = []
 for i in ['Position','Velocity','Acceleration']:
