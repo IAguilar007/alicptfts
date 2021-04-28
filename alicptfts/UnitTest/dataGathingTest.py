@@ -1,4 +1,17 @@
 from newportxps import NewportXPS
+import posixpath
+
+def downloadData(newportxps, filename='Gathering.dat'):
+    """download text of data file
+    Arguments:
+    ----------
+       newportxps (obj):  NewportXPS object
+       filename  (str):   data file name
+    """
+    newportxps.ftpconn.connect(**newportxps.ftpargs)
+    newportxps.ftpconn.cwd(posixpath.join(newportxps.ftphome, 'Public'))
+    newportxps.ftpconn.save(filename, filename)
+    newportxps.ftpconn.close()
 
 xps = NewportXPS('192.168.0.254', username='Administrator', password='Administrator')
 xps.initialize_allgroups()
@@ -37,12 +50,14 @@ xps.move_stage('Group1.Pos',250)
 
 print('Status: Finish config setting')
 xps._xps.GatheringRun(xps._sid,100,8)
-xps.move_stage('Group1.Pos',150,1)
+xps.move_stage('Group1.Pos',150,True)
 
 #print('Status: Stop gathering')
 #xps._xps.GatheringStop(xps._sid)
 print('Status: Saving')
 xps._xps.GatheringStopAndSave(xps._sid)
+print('Status: Try to Download Data')
+downloadData(xps,'Gathering.dat')
 
 print()
 print('Test Finish!')
