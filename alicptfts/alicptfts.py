@@ -74,7 +74,7 @@ class AlicptFTS:
         self.chopper = MC2000B()
         if (self.newportxps is None):     # Start a new connection
             try:
-                self.newportxps = NewportXPS(host, username, password,port,timeout)
+                self.newportxps = NewportXPS(host=host, username=username, password=password,port=port,timeout=timeout)
                 print(xps.status_report())
 
             except XPSException:

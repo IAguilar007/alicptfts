@@ -39,8 +39,8 @@ print('Status: Finish config setting')
 xps._xps.GatheringRun(xps._sid,100,8)
 xps.move_stage('Group1.Pos',150,1)
 
-print('Status: Stop gathering')
-xps._xps.GatheringStop(xps._sid)
+#print('Status: Stop gathering')
+#xps._xps.GatheringStop(xps._sid)
 print('Status: Saving')
 xps._xps.GatheringStopAndSave(xps._sid)
 
