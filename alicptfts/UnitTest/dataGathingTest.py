@@ -1,6 +1,8 @@
 from newportxps import NewportXPS
+from newportxps.newportxps import withConnectedXPS
 import posixpath
 
+@withConnectedXPS
 def downloadData(newportxps, filename='Gathering.dat'):
     """download text of data file
     Arguments:

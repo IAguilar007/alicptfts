@@ -14,6 +14,8 @@ sys.path.append(r'lib')
 # import MC2000B_COMMAND_LIB as mc2000b
 from newportxps import NewportXPS
 from newportxps.XPS_C8_drivers import XPSException
+from newportxps.newportxps import withConnectedXPS
+
 
 import enum
 
