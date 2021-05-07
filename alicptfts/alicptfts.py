@@ -2,6 +2,9 @@
 
 import sys
 import os
+import ntplib
+import time
+
 print(os.getcwd())
 #import System
 #from System import String
@@ -19,6 +22,7 @@ from newportxps.newportxps import withConnectedXPS
 
 import enum
 
+
 class FTSState(enum.Enum):
     NOTINIT  = 0
     INIT     = 1
@@ -31,7 +35,11 @@ class FTSmotion(enum.Enum):
     PointingLinear = 0
     PointingRotary = 1
     MovingLinear = 2
-    
+
+groupName = {'PointingLinear': 'Group2',
+    'PointingRotary': 'Group3',
+    'MovingLinear': 'Group1'}
+
 class MC2000B:
     def __init__(self):
         pass
@@ -46,6 +54,7 @@ class AlicptFTS:
         self.chopper = None
         self.newportxps = None 
         self.state = FTSState.NOTINIT
+        self.ntpObj = None
 
     def initialize(self, host='192.168.254.254',username='Administrator',password='Administrator',port=5001, timeout=100):
         """Establish connection with each part.
@@ -77,13 +86,13 @@ class AlicptFTS:
         if (self.newportxps is None):     # Start a new connection
             try:
                 self.newportxps = NewportXPS(host=host, username=username, password=password,port=port,timeout=timeout)
-                print(xps.status_report())
+                print('STATUS: Connected to XPS')
 
             except XPSException:
-                print('Cannot Connect to XPS')
+                print('ERROR: Cannot Connect to XPS')
                 raise
             except:
-                print('Unkown System Reason')
+                print('ERROR: Unkown System Reason')
                 raise
         else:                           # From a reboot
             try:
@@ -93,13 +102,15 @@ class AlicptFTS:
             except Exception:
                 pass
 
-        print('STATUS: Initialize all groups')
         self.newportxps.initialize_allgroups()
-        print(xps.status_report())
-        print('STATUS: Initialize all groups')
+        print('STATUS: Initialized all groups')
         self.newportxps.home_allgroups()
-        print(xps.status_report())
+        print('STATUS: Processed home search')
         self.state = FTSState.INIT
+        self.set_motion_params('MovingLinear',[20])
+        #self.newportxps.set_velocity('Group1.Pos', 20)
+        #self.newportxps.set_velocity('Group2.Pos', 20)
+        #self.newportxps.set_velocity('Group3.Pos', 10)
 
     def configure(self, positions, relative=False):
         """Configure the stages so that the FTS is ready to scan.
@@ -120,11 +131,9 @@ class AlicptFTS:
             original coordinates plus "positions" (default is False).
         """
         self.check_state('configure')
-
+        if(len(positions) < 2): raise Exception('ERROR: length of positions should not less than 2 ')
         try:
             self.newportxps.configure_pointing(positions=positions, relative=relative)
-        except XPSException:
-            pass
         except Exception:
             pass
 
@@ -262,11 +271,42 @@ class AlicptFTS:
         except Exception:
             pass
 
+    def get_network_time():
+        NTPserver = ['pool.ntp.org', 'time.stanford.edu']
+        if (self.ntpObj is None): self.ntpObj = ntplib.NTPClient()
+        ntpResponse = 0
+        for server in NTPserver:
+            try:
+                ntpResponse = self.ntpObj.request(server)
+                # print('NTP SERVER: ' + server)
+                break
+            except:
+                pass
+
+        if (ntpResponse):
+            return ntpResponse.tx_time
+        else:
+            return None
+
+    def get_time_diff():
+
+        ntpResponse = get_network_time()
+        if (ntpResponse):
+            diff = time.time() - ntpResponse
+            return diff
+
+        else:
+            ## warnings.warn(message, category=None, stacklevel=1, source=None)
+            print('Warning: CANNOT Get NTP Time.')
+            print('Using Local Time.')
+            return 0
+
     ## Helper functions
     def save_timestamps(self, timestamps, tname):
         try:
             np.savetxt(tname, np.array(timestamps), delimiter=' ')
-        except Exception:
+        except FileNotFoundError:
+            print('ERROR: cannot find the output file')
             raise
 
     # TODO
@@ -287,9 +327,23 @@ class AlicptFTS:
             interested parameters as "None".
             Will use default values if not specificed (None).
         """
+        if (xps_grp not in groupName): raise KeyError("KeyError: '{}'".format(xps_grp))
+        temp_par = [None]*4
+        if (type(params) is int or type(params) is float): temp_par.append(params)
+        elif (type(params) is list):
+            if (len(params) < 1): raise Error('ERROR: Empty list')
+        else:
+            for i,par in enumerate(params):
+                temp_par[i] = par
+                if (i>4): break
+        else:
+            raise TypeError('ERROR: Require a list or a float for parameters')
+
         self.check_state('set_motion_params')
         try:
-            self.newportxps.set_motion_params(xps_grp, params)
+            self.newportxps.set_velocity(groupName[xps_grp]+'.Pos',
+                                     velo=temp_par[0], accl=temp_par[1],
+                                     min_jerktime=temp_par[2], max_jerktime=temp_par[3])
         except Exception:
             pass
 
