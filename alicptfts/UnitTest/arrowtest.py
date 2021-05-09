@@ -42,11 +42,9 @@ def lower_bound():  # lower boundary for stage 2
 
 
 def move_stage1():
-    i = 0
-    while i < 15:
+    for i in range(15):
         xps.move_stage('Group1.Pos', 150)
         xps.move_stage('Group1.Pos', 0)
-        i += 1
 
 
 print()
