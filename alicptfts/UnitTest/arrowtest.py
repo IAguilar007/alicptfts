@@ -1,7 +1,13 @@
-from newportxps import NewportXPS
-from pynput.keyboard import Listener, Key
+import logging
 import math
+import time
 
+from newportxps import NewportXPS
+# from newportxps.XPS_C8_drivers import XPSException
+from pynput.keyboard import Listener, Key
+
+# Setup logging
+logging.basicConfig(filename="key_log.txt", level=logging.DEBUG, format='%(asctime)s %(message)s')
 
 xps = NewportXPS('192.168.0.254', username='Administrator', password='Administrator')
 xps.initialize_allgroups()
@@ -12,21 +18,34 @@ xps.home_allgroups()
 # Group3: PR50CC
 
 # INITIAL CONDITIONS
-length1 = 0 # For Group1, mm
-length = 0 # mm
-angle = 45.0 # degrees
-height = 700 # mm
+length1 = 0  # For Group1, mm
+length = 250  # mm
+angle = 45.0  # degrees
+height = 700  # mm
 angle_dependent = True
+fast = False
 
 
-def center_detector(number):
-    ideal_angle = math.degrees(math.atan(height / (math.sqrt(number**2 + height**2) - number)))
+def center_detector(number):  # Finds angle for a given position to hit center detector
+    ideal_angle = math.degrees(math.atan(height / (math.sqrt((number - 250) ** 2 + height ** 2) + number - 250)))
     return ideal_angle
 
 
-def length_boundaries():
-    boundary = height / math.tan(math.radians(72))
+def upper_bound():  # upper boundary for stage 2
+    boundary = 250 + height / math.tan(math.radians(72))  # 72 since 90 - 18
     return math.trunc(boundary)
+
+
+def lower_bound():  # lower boundary for stage 2
+    boundary = 250 + height / math.tan(math.radians(108))  # 108 since 90 + 18
+    return math.trunc(boundary)
+
+
+def move_stage1():
+    i = 0
+    while i <= 15:
+        xps.move_stage('Group1.Pos', 150)
+        xps.move_stage('Group1.Pos', 0)
 
 
 print()
@@ -34,72 +53,141 @@ print('Check Status: Status should be Ready')
 print(xps.status_report())
 
 print()
-print('Status: Set Max Velocity')  ## unit: mm/s
-xps.set_velocity('Group1.Pos',20)
-xps.set_velocity('Group2.Pos',20)
-xps.set_velocity('Group3.Pos',10)
+print('Status: Set Max Velocity')  # unit: mm/s
+xps.set_velocity('Group1.Pos', 5)
+xps.set_velocity('Group2.Pos', 5)
+xps.set_velocity('Group3.Pos', 5)
 
 print('Status: Set the Initial position')
-xps.move_stage('Group1.Pos', length1) # Done near top of code
+xps.move_stage('Group1.Pos', length1)  # Done near top of code
 xps.move_stage('Group2.Pos', length)
 xps.move_stage('Group3.Pos', angle)
 
-print('Use Arrow Keys!')
-print('Esc button stops exits program!')
-print('Space button changes angle dependence. Default True!')
+print('Use Arrow Keys to move')
+print('Esc button exits program!')
+print('Space button changes angle dependence. Default True')
+print('Enter button changes fast. Default False')
+print('Left control button starts Stage1 motion')
 
 
 def on_press(key):  # The function that's called when a key is pressed
-    global length, angle, angle_dependent
-    if key == Key.space: # space button changes whether angle is dependent or not
+    global length, angle, angle_dependent, fast
+    if key == Key.cltr_l:
+        move_stage1()
+    if key == Key.space:  # Space button changes angle dependency
         angle_dependent = not angle_dependent
         if angle_dependent:
             angle = center_detector(length)
-            xps.set_velocity('Group3.Pos', 10)
             xps.move_stage('Group3.Pos', round(angle, 2))
-            print(f"Angle Dependent: {angle_dependent}.  Position: {length} mm  Angle: {round(angle, 2)}°")
+            print('Fast: {}.  Angle Dependent: {}. Stage1: {:.2f} mm  Stage2: {:.2f} mm  Stage3: {:.2f}°'.format(fast,
+                                                                                                                 angle_dependent,
+                                                                                                                 xps.get_stage_position(
+                                                                                                                     'Group1.Pos'),
+                                                                                                                 xps.get_stage_position(
+                                                                                                                     'Group2.Pos'),
+                                                                                                                 xps.get_stage_position(
+                                                                                                                     'Group3.Pos')))
+            logging.info('Stage1: {:.2f} Stage2: {:.2f} Stage3: {:.2f}'.format(xps.get_stage_position(
+                'Group1.Pos'), xps.get_stage_position('Group2.Pos'), xps.get_stage_position('Group3.Pos')))
         else:
-            print(f"Angle Dependent: {angle_dependent}.  Position: {length} mm  Angle: {round(angle, 2)}°")
-    if abs(length) <= length_boundaries():
+            print('Fast: {}.  Angle Dependent: {}. Stage1: {:.2f} mm  Stage2: {:.2f} mm  Stage3: {:.2f}°'.format(fast,
+                                                                                                                 angle_dependent,
+                                                                                                                 xps.get_stage_position(
+                                                                                                                     'Group1.Pos'),
+                                                                                                                 xps.get_stage_position(
+                                                                                                                     'Group2.Pos'),
+                                                                                                                 xps.get_stage_position(
+                                                                                                                     'Group3.Pos')))
+    if key == Key.enter:
+        fast = not fast  # enter key changes how fast this goes
+        print('Fast: {}.  Angle Dependent: {}. Stage1: {:.2f} mm  Stage2: {:.2f} mm  Stage3: {:.2f}°'.format(fast,
+                                                                                                             angle_dependent,
+                                                                                                             xps.get_stage_position(
+                                                                                                                 'Group1.Pos'),
+                                                                                                             xps.get_stage_position(
+                                                                                                                 'Group2.Pos'),
+                                                                                                             xps.get_stage_position(
+                                                                                                                 'Group3.Pos')))
+    length_spacing = 1
+    angle_spacing = .1
+    if fast:
+        length_spacing = 10
+        angle_spacing = 1
+    if lower_bound() <= length <= upper_bound():
         if key == Key.right:
-            if length != length_boundaries():
-                length += 1
+            if length != upper_bound():
+                length += length_spacing
             if angle_dependent:
                 angle = center_detector(length)
             xps.move_stage('Group2.Pos', length)
             xps.move_stage('Group3.Pos', round(angle, 2))
-            print(f"Angle Dependent: {angle_dependent}.  Position: {length} mm  Angle: {round(angle, 2)}°")
+            print('Fast: {}.  Angle Dependent: {}. Stage1: {:.2f} mm  Stage2: {:.2f} mm  Stage3: {:.2f}°'.format(fast,
+                                                                                                                 angle_dependent,
+                                                                                                                 xps.get_stage_position(
+                                                                                                                     'Group1.Pos'),
+                                                                                                                 xps.get_stage_position(
+                                                                                                                     'Group2.Pos'),
+                                                                                                                 xps.get_stage_position(
+                                                                                                                     'Group3.Pos')))
+            logging.info('Stage1: {:.2f} Stage2: {:.2f} Stage3: {:.2f}'.format(xps.get_stage_position(
+                'Group1.Pos'), xps.get_stage_position('Group2.Pos'), xps.get_stage_position('Group3.Pos')))
         if key == Key.left:
-            if length != - length_boundaries():
-                length -= 1
+            if length != lower_bound():
+                length -= length_spacing
             if angle_dependent:
                 angle = center_detector(length)
             xps.move_stage('Group2.Pos', length)
             xps.move_stage('Group3.Pos', round(angle, 2))
-            print(f"Angle Dependent: {angle_dependent}.  Position: {length} mm  Angle: {round(angle, 2)}°")
+            print('Fast: {}.  Angle Dependent: {}. Stage1: {:.2f} mm  Stage2: {:.2f} mm  Stage3: {:.2f}°'.format(fast,
+                                                                                                                 angle_dependent,
+                                                                                                                 xps.get_stage_position(
+                                                                                                                     'Group1.Pos'),
+                                                                                                                 xps.get_stage_position(
+                                                                                                                     'Group2.Pos'),
+                                                                                                                 xps.get_stage_position(
+                                                                                                                     'Group3.Pos')))
+            logging.info('Stage1: {:.2f} Stage2: {:.2f} Stage3: {:.2f}'.format(xps.get_stage_position(
+                'Group1.Pos'), xps.get_stage_position('Group2.Pos'), xps.get_stage_position('Group3.Pos')))
         if key == Key.up and not angle_dependent:
-            angle += .1
+            angle += angle_spacing
             xps.move_stage('Group2.Pos', length)
             xps.move_stage('Group3.Pos', round(angle, 2))
-            print(f"Angle Dependent: {angle_dependent}.  Position: {length} mm  Angle: {round(angle, 2)}°")
+            print('Fast: {}.  Angle Dependent: {}. Stage1: {:.2f} mm  Stage2: {:.2f} mm  Stage3: {:.2f}°'.format(fast,
+                                                                                                                 angle_dependent,
+                                                                                                                 xps.get_stage_position(
+                                                                                                                     'Group1.Pos'),
+                                                                                                                 xps.get_stage_position(
+                                                                                                                     'Group2.Pos'),
+                                                                                                                 xps.get_stage_position(
+                                                                                                                     'Group3.Pos')))
+            logging.info('Stage1: {:.2f} Stage2: {:.2f} Stage3: {:.2f}'.format(xps.get_stage_position(
+                'Group1.Pos'), xps.get_stage_position('Group2.Pos'), xps.get_stage_position('Group3.Pos')))
         if key == Key.down and not angle_dependent:
-            angle -= .1
+            angle -= angle_spacing
             xps.move_stage('Group2.Pos', length)
             xps.move_stage('Group3.Pos', round(angle, 2))
-            print(f"Angle Dependent: {angle_dependent}.  Position: {length} mm  Angle: {round(angle, 2)}°")
+            print('Fast: {}.  Angle Dependent: {}. Stage1: {:.2f} mm  Stage2: {:.2f} mm  Stage3: {:.2f}°'.format(fast,
+                                                                                                                 angle_dependent,
+                                                                                                                 xps.get_stage_position(
+                                                                                                                     'Group1.Pos'),
+                                                                                                                 xps.get_stage_position(
+                                                                                                                     'Group2.Pos'),
+                                                                                                                 xps.get_stage_position(
+                                                                                                                     'Group3.Pos')))
+            logging.info('Stage1: {:.2f} Stage2: {:.2f} Stage3: {:.2f}'.format(xps.get_stage_position(
+                'Group1.Pos'), xps.get_stage_position('Group2.Pos'), xps.get_stage_position('Group3.Pos')))
     else:
-        length = length_boundaries() if length > 0 else - length_boundaries()
-    if key == Key.esc: # Esc button exits
+        length = upper_bound() if length > 10 else lower_bound()
+    if key == Key.esc:  # Esc button exits
         print('Motion Completed!')
-        print()
         print('Status: Print Current Position')
         print('Stage1: {:.2f}'.format(xps.get_stage_position('Group1.Pos')))
         print('Stage2: {:.2f}'.format(xps.get_stage_position('Group2.Pos')))
         print('Stage3: {:.2f}'.format(xps.get_stage_position('Group3.Pos')))
-        print()
         print('Test Finish!')
+        time.sleep(10)
         exit(0)
+
 
 with Listener(on_press=on_press) as listener:  # Create an instance of Listener
     listener.join()  # Join the listener thread to the main thread to keep waiting for keys
-
