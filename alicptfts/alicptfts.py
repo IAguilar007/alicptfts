@@ -163,11 +163,26 @@ class AlicptFTS:
             Number of full back-and-forth scans (default is 15).
         """
         self.check_state('scan')
+        #self.newportxps._xps.('scan_test.dat')
+
+        if (scan_params): self.newportxps._xps.GatheringConfigurationSet(self.newportxps._sid,scan_params)
+        else: raise XPSException('ERROR: Cannot set gathering data')
+        print('Function Status: set data gathering')
+
         try:
-            self.set_motion_params('MovingLinear', scan_params)
+            self.newportxps.move_stage('Group1.Pos', 50.)
+            self.newportxps._xps.GatheringRun(self.newportxps._sid, 10000, 8)
+            self.newportxps.move_stage('Group1.Pos', 200.,True)
+            self.newportxps._xps.GatheringStop(self.newportxps._sid)
+            self.newportxps._xps.GatheringStopAndSave(self.newportxps._sid)
+            #self.set_motion_params('MovingLinear', scan_params)
+
+
         except Exception:
+            print('Scan Failure')
             pass
-        
+
+        '''
         self.state = FTSState.SCANNING
         try:
             timestamps = self.newportxps.scan(scan_range=scan_range, repeat=repeat)
@@ -179,6 +194,8 @@ class AlicptFTS:
         else:
             self.state = FTSState.FINISH
             return timestamps
+        
+        '''
 
     def save(self, timestamps=None, tname='TIMESTAMPS.DAT', fname='GATHERING.DAT'):
         """Save the gathering data and timestamps after a scan.
@@ -387,13 +404,19 @@ class AlicptFTS:
 
 if __name__ == '__main__':
     fts = AlicptFTS()
+    varlist = []
+    for i in ['Position', 'Velocity', 'Acceleration']:
+        for j in ['Current', 'Setpoint']:
+            varlist.append(j + i)
+
     fts.initialize('192.168.0.254','Administrator','Administrator')
     print('Status: Finish initialization')
     fts.status()
-    print('Test REBOOT')
-    fts.reboot()
-    fts.status()
-    print('Test Finished')
+    fts.configure(50,0)
+    print('Status: Set configure')
+    fts.scan(varlist)
+    print('Status: Scan Test Finished')
+    print('PASS TESTS')
     print('Disconnect...')
     fts.close()
     print('Done')
