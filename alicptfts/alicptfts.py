@@ -6,19 +6,19 @@ import ntplib
 import time
 
 print(os.getcwd())
-#import System
-#from System import String
+# import System
+# from System import String
 
 sys.path.append(r'../lib')
 sys.path.append(r'lib')
 
 
-#import lib.MC2000B_COMMAND_LIB as mc2000b
+# import lib.MC2000B_COMMAND_LIB as mc2000b
 # import MC2000B_COMMAND_LIB as mc2000b
 from newportxps import NewportXPS
 from newportxps.XPS_C8_drivers import XPSException
 from newportxps.newportxps import withConnectedXPS
-
+import posixpath
 
 import enum
 
@@ -78,7 +78,6 @@ class AlicptFTS:
         password : string (default is Administrator)
         """
         self.check_state('initialize')
-
         
         # Current implementation considers only the XPS controller
         self.source = IR518()
@@ -88,12 +87,10 @@ class AlicptFTS:
                 self.newportxps = NewportXPS(host=host, username=username, password=password,port=port,timeout=timeout)
                 print('STATUS: Connected to XPS')
 
-            except XPSException:
+            except Exception:
                 print('ERROR: Cannot Connect to XPS')
                 raise
-            except:
-                print('ERROR: Unkown System Reason')
-                raise
+
         else:                           # From a reboot
             try:
                 print('reboot')
@@ -107,12 +104,12 @@ class AlicptFTS:
         self.newportxps.home_allgroups()
         print('STATUS: Processed home search')
         self.state = FTSState.INIT
-        self.set_motion_params('MovingLinear',[20])
-        #self.newportxps.set_velocity('Group1.Pos', 20)
-        #self.newportxps.set_velocity('Group2.Pos', 20)
-        #self.newportxps.set_velocity('Group3.Pos', 10)
+        self.set_motion_params('MovingLinear',[20.])
+        self.set_motion_params('PointingRotary', [20.])
+        self.set_motion_params('PointingLinear', [20.])
 
-    def configure(self, positions, relative=False):
+
+    def configure(self, position, angle, relative=False):
         """Configure the stages so that the FTS is ready to scan.
         
         One my wish to modify the motion params before configuring
@@ -123,7 +120,10 @@ class AlicptFTS:
 
         Parameters
         ----------
-        positions : array of float
+        position : float
+            Target coordinates of the pointing mirror in (position, angle).
+
+        angle : array of float
             Target coordinates of the pointing mirror in (position, angle).
 
         relative : bool
@@ -131,9 +131,11 @@ class AlicptFTS:
             original coordinates plus "positions" (default is False).
         """
         self.check_state('configure')
-        if(len(positions) < 2): raise Exception('ERROR: length of positions should not less than 2 ')
         try:
-            self.newportxps.configure_pointing(positions=positions, relative=relative)
+            # self.newportxps.move_stage(groupName[MovingLinear]+'.Pos',0 ,relative)
+            self.newportxps.move_stage(groupName['PointingLinear']+'.Pos',position,relative)
+            self.newportxps.move_stage(groupName['PointingRotary']+'.Pos',angle,relative)
+
         except Exception:
             pass
 
@@ -180,7 +182,7 @@ class AlicptFTS:
 
     def save(self, timestamps=None, tname='TIMESTAMPS.DAT', fname='GATHERING.DAT'):
         """Save the gathering data and timestamps after a scan.
-        
+
         Parameters
         ----------
         timestamps: array of float
@@ -207,6 +209,23 @@ class AlicptFTS:
                 self.save_timestamps(timestamps, tname)
             except Exception:
                 pass
+
+    def download_data(self, filename=None):
+        """download text of data file on newport XPS
+        Arguments:
+        ----------
+           filename  (str):   data file name. Default 'Public/Gathering.dat'
+        """
+        if (filename is None): filename = ['Public','Gathering.dat']
+        elif (type(filename) is str): filename = [filename]
+        elif (type(filename) is list): pass
+        else: raise TypeError('Require the file path (\'Public/Gathering.dat\')')
+
+        self.newportxps.ftpconn.connect(**self.newportxps.ftpargs)
+        remote_path = posixpath.join(self.newportxps.ftphome, *filename)
+        self.newportxps.ftpconn.cwd(remote_path)
+        self.newportxps.ftpconn.save(posixpath.basename(remote_path), posixpath.basename(remote_path))
+        self.newportxps.ftpconn.close()
 
     def reboot(self):
         """Reboot the system to the NOTINIT state"""
@@ -271,7 +290,7 @@ class AlicptFTS:
         except Exception:
             pass
 
-    def get_network_time():
+    def get_network_time(self):
         NTPserver = ['pool.ntp.org', 'time.stanford.edu']
         if (self.ntpObj is None): self.ntpObj = ntplib.NTPClient()
         ntpResponse = 0
@@ -288,9 +307,9 @@ class AlicptFTS:
         else:
             return None
 
-    def get_time_diff():
+    def get_time_diff(self):
 
-        ntpResponse = get_network_time()
+        ntpResponse = self.get_network_time()
         if (ntpResponse):
             diff = time.time() - ntpResponse
             return diff
@@ -304,14 +323,13 @@ class AlicptFTS:
     ## Helper functions
     def save_timestamps(self, timestamps, tname):
         try:
-            np.savetxt(tname, np.array(timestamps), delimiter=' ')
+            print('Do Nothing')
+            #np.savetxt(tname, np.array(timestamps), delimiter=' ')
         except FileNotFoundError:
             print('ERROR: cannot find the output file')
             raise
 
-    # TODO
-    # We might want to promote this function to a command
-    # if it turns out to be useful during the operation
+
     def set_motion_params(self, xps_grp, params):
         """Set the SGamma profile parameters for an XPS positioner
         
@@ -321,23 +339,28 @@ class AlicptFTS:
             One of the following: PointingLinear, PointingRotary,
             and MovingLinear.
 
-        scan_params : array of float
+        params : array of float
             Scan parameters for the SGamma profile in
             [vel, acc, min_jerk_time, max_jerk_time]. Simply put the not-
             interested parameters as "None".
             Will use default values if not specificed (None).
         """
-        if (xps_grp not in groupName): raise KeyError("KeyError: '{}'".format(xps_grp))
+        self.check_state('set_motion_params')
+
+        # if (xps_grp not in groupName): raise KeyError("KeyError: '{}' is not in ".format(xps_grp))
+        if (xps_grp not in groupName): raise KeyError(xps_grp)
+
         temp_par = [None]*4
-        if (type(params) is int or type(params) is float): temp_par.append(params)
+        if (type(params) is int or type(params) is float): temp_par[0] = float(params)
         elif (type(params) is list):
-            if (len(params) < 1): raise Error('ERROR: Empty list')
+            if (len(params) > 0):
+                for i,par in enumerate(params):
+                    if (i>=4): break
+                    temp_par[i] = par
+            else: temp_par[0] = 20.  ## Set velocity with default value
+
         else:
-            for i,par in enumerate(params):
-                temp_par[i] = par
-                if (i>4): break
-        else:
-            raise TypeError('ERROR: Require a list or a float for parameters')
+            raise TypeError('ERROR: Require a list or float for parameters')
 
         self.check_state('set_motion_params')
         try:
