@@ -362,7 +362,6 @@ class AlicptFTS:
             interested parameters as "None".
             Will use default values if not specificed (None).
         """
-        self.check_state('set_motion_params')
 
         # if (xps_grp not in groupName): raise KeyError("KeyError: '{}' is not in ".format(xps_grp))
         if (xps_grp not in groupName): raise KeyError(xps_grp)
@@ -379,7 +378,6 @@ class AlicptFTS:
         else:
             raise TypeError('ERROR: Require a list or float for parameters')
 
-        self.check_state('set_motion_params')
         try:
             self.newportxps.set_velocity(groupName[xps_grp]+'.Pos',
                                      velo=temp_par[0], accl=temp_par[1],
@@ -400,7 +398,8 @@ class AlicptFTS:
         elif command == 'status': pass
         elif command == 'close': pass
         else:
-            raise ValueError('Error: Invalid command')
+            print('raise error: check_state', command)
+            #raise ValueError('Error: Invalid command')
 
 if __name__ == '__main__':
     fts = AlicptFTS()
