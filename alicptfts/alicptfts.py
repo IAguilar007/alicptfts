@@ -171,10 +171,12 @@ class AlicptFTS:
 
         try:
             self.newportxps.move_stage('Group1.Pos', 50.)
-            self.newportxps._xps.GatheringRun(self.newportxps._sid, 10000, 8)
+            self.newportxps.GatheringReset(self.newportxps._sid)
+            self.newportxps._xps.GatheringRun(self.newportxps._sid, len(scan_params)*10000, 8) ## max 1M
             self.newportxps.move_stage('Group1.Pos', 200.,True)
             self.newportxps._xps.GatheringStop(self.newportxps._sid)
-            self.newportxps._xps.GatheringStopAndSave(self.newportxps._sid)
+            self.newportxps.read_and_save('newGathering.dat')
+            #self.newportxps._xps.GatheringStopAndSave(self.newportxps._sid)
             #self.set_motion_params('MovingLinear', scan_params)
 
 
@@ -370,7 +372,10 @@ class AlicptFTS:
         if (type(params) is int or type(params) is float): temp_par[0] = float(params)
         elif (type(params) is list):
             if (len(params) > 0):
-                for i,par in enumerate(params):
+                for i,par in en
+
+
+                    umerate(params):
                     if (i>=4): break
                     temp_par[i] = par
             else: temp_par[0] = 20.  ## Set velocity with default value
@@ -398,15 +403,17 @@ class AlicptFTS:
         elif command == 'status': pass
         elif command == 'close': pass
         else:
-            print('raise error: check_state', command)
+            print('Error: Invalid command', command)
             #raise ValueError('Error: Invalid command')
 
 if __name__ == '__main__':
     fts = AlicptFTS()
     varlist = []
+
     for i in ['Position', 'Velocity', 'Acceleration']:
         for j in ['Current', 'Setpoint']:
-            varlist.append(j + i)
+            for n in range(3):
+                varlist.append('Group'+str(n)+'.Pos.'+j + i)
 
     fts.initialize('192.168.0.254','Administrator','Administrator')
     print('Status: Finish initialization')
