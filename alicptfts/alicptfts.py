@@ -372,10 +372,7 @@ class AlicptFTS:
         if (type(params) is int or type(params) is float): temp_par[0] = float(params)
         elif (type(params) is list):
             if (len(params) > 0):
-                for i,par in en
-
-
-                    umerate(params):
+                for i,par in enumerate(params):
                     if (i>=4): break
                     temp_par[i] = par
             else: temp_par[0] = 20.  ## Set velocity with default value
