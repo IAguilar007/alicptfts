@@ -164,25 +164,30 @@ class AlicptFTS:
         """
         self.check_state('scan')
         #self.newportxps._xps.('scan_test.dat')
-
+        print()
         if (scan_params): self.newportxps._xps.GatheringConfigurationSet(self.newportxps._sid,scan_params)
         else: raise XPSException('ERROR: Cannot set gathering data')
         print('Function Status: set data gathering')
 
+
+        self.newportxps.move_stage('Group1.Pos', 50.)
+        ## self.newportxps.GatheringReset(self.newportxps._sid)
+        print('Function Status: GatheringRun')
+        self.newportxps._xps.GatheringRun(self.newportxps._sid, len(scan_params)*10000, 8) ## max 1M
+        self.newportxps.move_stage('Group1.Pos', 200.,True)
+        print('Function Status: GatheringStop')
+        self.newportxps._xps.GatheringStop(self.newportxps._sid)
+        print('Function Status: GatheringStopAndSave')
+        self.newportxps._xps.GatheringStopAndSave(self.newportxps._sid)
+
         try:
-            self.newportxps.move_stage('Group1.Pos', 50.)
-            self.newportxps.GatheringReset(self.newportxps._sid)
-            self.newportxps._xps.GatheringRun(self.newportxps._sid, len(scan_params)*10000, 8) ## max 1M
-            self.newportxps.move_stage('Group1.Pos', 200.,True)
-            self.newportxps._xps.GatheringStop(self.newportxps._sid)
+            print('Function Status: Save output')
             self.newportxps.read_and_save('newGathering.dat')
-            #self.newportxps._xps.GatheringStopAndSave(self.newportxps._sid)
             #self.set_motion_params('MovingLinear', scan_params)
 
-
-        except Exception:
-            print('Scan Failure')
-            pass
+        except:
+            print('Warning: Cannot download data')
+            print('Please look for data on XPS')
 
         '''
         self.state = FTSState.SCANNING
@@ -198,6 +203,40 @@ class AlicptFTS:
             return timestamps
         
         '''
+    def scan_event(self, scan_params=None, scan_range=None, repeat=15):
+        self.check_state('scan')
+        #self.newportxps._xps.('scan_test.dat')
+        print()
+
+        self.newportxps.GatheringReset(self.newportxps._sid)
+        if (scan_params): self.newportxps._xps.GatheringConfigurationSet(self.newportxps._sid,scan_params)
+        else: raise XPSException('ERROR: Cannot set gathering data')
+        print('Function Status: set data gathering')
+
+        self.newportxps.move_stage('Group1.Pos', 50.)
+        print('Function Status: set event trigger')
+        self.newportxps._xps.EventExtendedConfigurationTriggerSet(self.newportxps._sid,['Group1.Pos.SGamma.MotionStart'],0,0,0,0)
+        print('Function Status: set event action')
+        self.newportxps._xps.EventExtendedConfigurationActionSet(self.newportxps._sid,['GatheringRun'], 10000, 8, 0, 0)
+        #self.newportxps._xps.GatheringRun(self.newportxps._sid, len(scan_params)*10000, 8) ## max 1M
+        print('Function Status: event start')
+        self.newportxps._xps.EventExtendedStart(self.newportxps._sid)
+        self.newportxps.move_stage('Group1.Pos', 200.,True)
+        print('Function Status: GatheringStop')
+        self.newportxps._xps.GatheringStop(self.newportxps._sid)
+        print('Function Status: GatheringStopAndSave')
+        self.newportxps._xps.GatheringStopAndSave(self.newportxps._sid)
+
+        try:
+            print('Function Status: Save output')
+            self.newportxps.read_and_save('newGathering_event.dat')
+            #self.set_motion_params('MovingLinear', scan_params)
+
+        except:
+            print('Warning: Cannot download data')
+            print('Please look for data on XPS')
+
+
 
     def save(self, timestamps=None, tname='TIMESTAMPS.DAT', fname='GATHERING.DAT'):
         """Save the gathering data and timestamps after a scan.
@@ -417,7 +456,13 @@ if __name__ == '__main__':
     fts.status()
     fts.configure(50,0)
     print('Status: Set configure')
+    ##################
+    ## test 1
     fts.scan(varlist)
+    ##################
+    ## test 2
+    # fts.scan_event(varlist)
+    ##################
     print('Status: Scan Test Finished')
     print('PASS TESTS')
     print('Disconnect...')
