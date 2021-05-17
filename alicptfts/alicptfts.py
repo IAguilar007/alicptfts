@@ -164,30 +164,36 @@ class AlicptFTS:
         """
         self.check_state('scan')
         #self.newportxps._xps.('scan_test.dat')
-        print()
+        #print()
         if (scan_params): self.newportxps._xps.GatheringConfigurationSet(self.newportxps._sid,scan_params)
         else: raise XPSException('ERROR: Cannot set gathering data')
-        print('Function Status: set data gathering')
+        #print('Function Status: set data gathering')
 
 
         self.newportxps.move_stage('Group1.Pos', 50.)
         ## self.newportxps.GatheringReset(self.newportxps._sid)
-        print('Function Status: GatheringRun')
+        #print('Function Status: GatheringRun')
         self.newportxps._xps.GatheringRun(self.newportxps._sid, len(scan_params)*10000, 8) ## max 1M
         self.newportxps.move_stage('Group1.Pos', 200.,True)
         print('Function Status: GatheringStop')
         self.newportxps._xps.GatheringStop(self.newportxps._sid)
+
         print('Function Status: GatheringStopAndSave')
-        self.newportxps._xps.GatheringStopAndSave(self.newportxps._sid)
+        err, mes = self.newportxps._xps.GatheringStopAndSave(self.newportxps._sid)
+        print('Function Status: Finished GatheringStopAndSave')
+        print(err)
+        print(mes)
+
+        print('Function Status: Save output')
 
         try:
-            print('Function Status: Save output')
             self.newportxps.read_and_save('newGathering.dat')
             #self.set_motion_params('MovingLinear', scan_params)
 
         except:
             print('Warning: Cannot download data')
             print('Please look for data on XPS')
+            raise
 
         '''
         self.state = FTSState.SCANNING
@@ -225,11 +231,16 @@ class AlicptFTS:
         print('Function Status: GatheringStop')
         self.newportxps._xps.GatheringStop(self.newportxps._sid)
         print('Function Status: GatheringStopAndSave')
-        self.newportxps._xps.GatheringStopAndSave(self.newportxps._sid)
+        err, mes = self.newportxps._xps.GatheringStopAndSave(self.newportxps._sid)
+        print('Function Status: Finished GatheringStopAndSave')
+        print(err)
+        print(mes)
+        print('Function Status: GatheringCurrentNumberGet, ', self.newportxps._xps.GatheringCurrentNumberGet(self.newportxps._sid))
 
         try:
             print('Function Status: Save output')
             self.newportxps.read_and_save('newGathering_event.dat')
+            print('nGathering: ', self.newportxps.ngathered)
             #self.set_motion_params('MovingLinear', scan_params)
 
         except:
