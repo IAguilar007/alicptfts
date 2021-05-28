@@ -25,7 +25,7 @@ print(newxps.status_report())
 time.sleep(5)
 
 print()
-print('Now please start move_stage1.py in another terminal.')
+print('Now please start move_stage1_test.py in another terminal.')
 time.sleep(20)
 
 print()
