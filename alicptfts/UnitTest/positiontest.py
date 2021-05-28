@@ -9,7 +9,7 @@ import time
 logging.basicConfig(filename="key_log.txt", level=logging.DEBUG, format='%(asctime)s %(message)s')
 
 # Changed from xps to newxps since xps is normally an attribute. Making it a class makes it ambiguous
-newxps = NewportXPS('192.168.0.254', username='Administrator', password='gravitywaves')
+newxps = NewportXPS('192.168.0.254', username='xxxxxx', password='xxxxxxxx')
 conxps = newxps._xps  # Stands for condensed xps name since newxps._xps is tedious to write
 socketId = conxps.TCP_ConnectToServer('171.64.56.87', 5001, 20)
 newxps.initialize_allgroups()
