@@ -4,14 +4,16 @@ import math
 from newportxps import NewportXPS
 import logging
 import time
-import newportxps.XPS_C8_drivers
 
 # Setup logging
 logging.basicConfig(filename="key_log.txt", level=logging.DEBUG, format='%(asctime)s %(message)s')
 
-xps = NewportXPS('192.168.0.254', username='xxxxxxx', password='xxxxxx')
-xps.initialize_allgroups()
-xps.home_allgroups()
+# Changed from xps to newxps since xps is normally an attribute. Making it a class makes it ambiguous
+newxps = NewportXPS('192.168.0.254', username='xxxxxxxxxxxxx', password='xxxxxxxxxxxx')
+conxps = newxps._xps  # Stands for condensed xps name since newxps._xps is tedious to write
+socketId = conxps.TCP_ConnectToServer('171.64.56.87', 5001, 20)
+newxps.initialize_allgroups()
+newxps.home_allgroups()
 
 # Group1: IMS500CCHA
 # Group2: IMS500CC
@@ -19,21 +21,21 @@ xps.home_allgroups()
 
 print()
 print('Check Status: Status should be Ready')
-print(xps.status_report())
+print(newxps.status_report())
 time.sleep(5)
 
 print()
 print('Status: Set Max Velocity')  # unit: mm/s
-xps.set_velocity('Group1.Pos', 5)
-xps.set_velocity('Group2.Pos', 5)
-xps.set_velocity('Group3.Pos', 5)
+newxps.set_velocity('Group1.Pos', 5)
+newxps.set_velocity('Group2.Pos', 5)
+newxps.set_velocity('Group3.Pos', 5)
 time.sleep(5)
 
 print()
 print('Status: Set the Initial position')
-xps.move_stage('Group1.Pos', 0)  # Initial Conditions
-xps.move_stage('Group2.Pos', 250)
-xps.move_stage('Group3.Pos', 45)
+newxps.move_stage('Group1.Pos', 0)  # Initial Conditions
+newxps.move_stage('Group2.Pos', 250)
+newxps.move_stage('Group3.Pos', 45)
 time.sleep(5)
 
 
@@ -54,38 +56,47 @@ def main(stdscr):
     length = 250
     height = 700
     angle = 45
+    vel = 0
+    MAX_VELOCITY = 10
     arrow_down = 258
     arrow_up = 259
     arrow_left = 260
     arrow_right = 261
     angle_independent = False
-    stdscr.addstr(0, 0, f"Position: {round(length, 2)} mm, Angle: {round(angle, 2)}°")
-    stdscr.addstr(1, 0, f"Press arrow keys for motion")
-    stdscr.addstr(2, 0, f"Press 'q' to quit the program")
-    stdscr.addstr(3, 0, f"Press 't' to toggle between an independent angle and a dependent angle")
-    stdscr.addstr(4, 0, f"Mode: Independent angle") if angle_independent else stdscr.addstr(4, 0, f"Mode: Dependent angle")
+    velocity = False
+    stdscr.addstr(0, 0, 'Stage1: {:2f} mm Stage2: {:2f} mm Stage3: {:2f}°'.format(newxps.get_stage_position('Group1.Pos'), newxps.get_stage_position('Group2.Pos'), newxps.get_stage_position('Group3.Pos')))
+    stdscr.addstr(1, 0, f"Press arrow keys for velocity") if velocity else stdscr.addstr(1, 0, f"Press arrow keys for motion")
+    stdscr.addstr(2, 0, f"Press 'm' to move Stage 1. Just to test if all stages can move at once.")
+    stdscr.addstr(3, 0, f"Press 'q' to quit the program")
+    stdscr.addstr(4, 0, f"Press 't' to toggle between an independent angle and a dependent angle")
+    stdscr.addstr(5, 0, f"Press 'c' to change between velocity and position for arrow keys")
+    stdscr.addstr(6, 0, f"Mode: Independent angle") if angle_independent else stdscr.addstr(6, 0, f"Mode: Dependent angle")
     while True:
         ch = stdscr.getch()
         stdscr.clear()
         if ch == ord('q'):
+            conxps.KillAll(socketId)
+            conxps.TCP_CloseSocket(socketId)
             stdscr.addstr(0, 0, "Test Completed")
             stdscr.refresh()
-            xps.KillAll()
             time.sleep(5)
             break
+        elif ch == ord('m'):
+            newxps.move_stage('Group1.Pos', 492)
+            newxps.move_stage('Group1.Pos', 8)
         elif ch == arrow_down and angle_independent:
             angle -= 0.1
         elif ch == arrow_up and angle_independent:
             angle += 0.1
-        elif ch == arrow_left:
+        elif ch == arrow_left and not velocity:
             if length == clamp(length + 1, height):
-                stdscr.addstr(5, 0, "Can't go any more leftwards!")
+                stdscr.addstr(7, 0, "Can't go any more leftwards!")
             length = clamp(length + 1, height)
             if not angle_independent:
                 angle = center_detector(length, height)
-        elif ch == arrow_right:
+        elif ch == arrow_right and not velocity:
             if length == clamp(length - 1, height):
-                stdscr.addstr(5, 0, "Can't go any more rightwards!")
+                stdscr.addstr(7, 0, "Can't go any more rightwards!")
             length = clamp(length - 1, height)
             if not angle_independent:
                 angle = center_detector(length, height)
@@ -93,16 +104,20 @@ def main(stdscr):
             angle_independent = not angle_independent
             if not angle_independent:
                 angle = center_detector(length, height)
+        elif ch == ord('c'):
+            velocity = not velocity
         else:
             pass
-        xps.move_stage('Group2.Pos', length)
-        xps.move_stage('Group3.Pos', angle)
-        logging.info('Stage1: {:2f} Stage2: {:2f} Stage3: {:2f}'.format(xps.get_stage_position('Group1.Pos'), xps.get_stage_position('Group2.Pos'), xps.get_stage_position('Group3.Pos')))
-        stdscr.addstr(0, 0, 'Stage1: {:2f} mm Stage2: {:2f} mm Stage3: {:2f}°'.format(xps.get_stage_position('Group1.Pos'), xps.get_stage_position('Group2.Pos'), xps.get_stage_position('Group3.Pos')))
-        stdscr.addstr(1, 0, f"Press arrow keys for motion")
-        stdscr.addstr(2, 0, f"Press 'q' to quit the program")
-        stdscr.addstr(3, 0, f"Press 't' to toggle between an independent angle and a dependent angle")
-        stdscr.addstr(4, 0, f"Mode: Independent angle") if angle_independent else stdscr.addstr(4, 0, f"Mode: Dependent angle")
+        newxps.move_stage('Group2.Pos', length)
+        newxps.move_stage('Group3.Pos', angle)
+        logging.info('Stage1: {:2f} Stage2: {:2f} Stage3: {:2f}'.format(newxps.get_stage_position('Group1.Pos'), newxps.get_stage_position('Group2.Pos'), newxps.get_stage_position('Group3.Pos')))
+        stdscr.addstr(0, 0, 'Stage1: {:2f} mm Stage2: {:2f} mm Stage3: {:2f}°'.format(newxps.get_stage_position('Group1.Pos'), newxps.get_stage_position('Group2.Pos'), newxps.get_stage_position('Group3.Pos')))
+        stdscr.addstr(1, 0, f"Press arrow keys for velocity") if velocity else stdscr.addstr(1, 0, f"Press arrow keys for motion")
+        stdscr.addstr(2, 0, f"Press 'm' to move Stage 1. Just to test if all stages can move at once.")
+        stdscr.addstr(3, 0, f"Press 'q' to quit the program")
+        stdscr.addstr(4, 0, f"Press 't' to toggle between an independent angle and a dependent angle")
+        stdscr.addstr(5, 0, f"Press 'c' to change between velocity and position for arrow keys")
+        stdscr.addstr(6, 0, f"Mode: Independent angle") if angle_independent else stdscr.addstr(5, 0, f"Mode: Dependent angle")
         stdscr.refresh()
 
 
