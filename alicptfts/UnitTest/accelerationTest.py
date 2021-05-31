@@ -6,7 +6,7 @@ import logging
 import time
 
 # Setup logging
-logging.basicConfig(filename="accel_log.txt", level=logging.DEBUG, format='%(asctime)s %(message)s')
+logging.basicConfig(filename="accelerationtest_log.txt", level=logging.DEBUG, format='%(asctime)s %(message)s')
 
 # Changed from xps to newxps since xps is normally an attribute. Making it a class makes it ambiguous
 newxps = NewportXPS('192.168.0.254', username='xxxxxxxxx', password='xxxxxxxxxx')
