@@ -116,9 +116,9 @@ def main(stdscr):
         if ch == ord('t'):
             angle_independent = not angle_independent
         if newxps.get_stage_position('Group2.Pos') >= upper_bound(height):
-            newxps.move_stage('Group2.Pos', lower_bound(height) + 1)
+            newxps.move_stage('Group2.Pos', lower_bound(height) - 1)
         elif newxps.get_stage_position('Group2.Pos') <= lower_bound(height):
-            newxps.move_stage('Group2.Pos', upper_bound(height) - 1)
+            newxps.move_stage('Group2.Pos', upper_bound(height) + 1)
         else:
             pass
         newxps.set_velocity('Group1.Pos', velocity, acceleration)
