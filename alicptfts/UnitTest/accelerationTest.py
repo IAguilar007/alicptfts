@@ -95,30 +95,30 @@ def main(stdscr):
             stdscr.refresh()
             time.sleep(5)
             break
-        if newxps.get_stage_position('Group2.Pos') >= upper_bound(height):
-            newxps.move_stage('Group2.Pos', lower_bound(height) + 1)
-        if newxps.get_stage_position('Group2.Pos') <= lower_bound(height):
-            newxps.move_stage('Group2.Pos', upper_bound(height) - 1)
-        elif not angle_independent:
+        if not angle_independent:
             angle = center_detector(length, height)
-        elif ch == arrow_down and angle_independent:
+        if ch == arrow_down and angle_independent:
             angle -= 0.1
-        elif ch == arrow_up and angle_independent:
+        if ch == arrow_up and angle_independent:
             angle += 0.1
-        elif ch == arrow_left:
+        if ch == arrow_left:
             if acceleration_bool and acceleration > 0:
                 acceleration -= 1
             if not acceleration_bool and velocity > 0:
                 velocity -= 1
-        elif ch == arrow_right:
+        if ch == arrow_right:
             if acceleration_bool and acceleration < max_acceleration:
                 acceleration += 1
             if not acceleration_bool and velocity < max_velocity:
                 velocity += 1
-        elif ch == ord('c'):
+        if ch == ord('c'):
             acceleration_bool = not acceleration_bool
-        elif ch == ord('t'):
+        if ch == ord('t'):
             angle_independent = not angle_independent
+        if newxps.get_stage_position('Group2.Pos') >= upper_bound(height):
+            newxps.move_stage('Group2.Pos', lower_bound(height) + 1)
+        elif newxps.get_stage_position('Group2.Pos') <= lower_bound(height):
+            newxps.move_stage('Group2.Pos', upper_bound(height) - 1)
         else:
             pass
         newxps.set_velocity('Group1.Pos', velocity, acceleration)
