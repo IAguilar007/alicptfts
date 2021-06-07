@@ -1,7 +1,7 @@
 import curses
 from curses import wrapper
 import math
-from newportxps import NewportXPS
+from mynewportxps.newportxps import NewportXPS
 import logging
 import time
 
