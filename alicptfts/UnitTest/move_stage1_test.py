@@ -1,6 +1,6 @@
 import curses
 from curses import wrapper
-from newportxps import NewportXPS
+from mynewportxps.newportxps import NewportXPS
 import time
 
 newxps = NewportXPS('192.168.0.254', username='xxxxxxxx', password='xxxxxxxxx')
