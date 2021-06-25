@@ -9,15 +9,14 @@ print(os.getcwd())
 # import System
 # from System import String
 
-sys.path.append(r'../lib')
+sys.path.append(r'..')
 sys.path.append(r'lib')
-
 
 # import lib.MC2000B_COMMAND_LIB as mc2000b
 # import MC2000B_COMMAND_LIB as mc2000b
-from newportxps import NewportXPS
-from newportxps.XPS_C8_drivers import XPSException
-from newportxps.newportxps import withConnectedXPS
+from mynewportxps.newportxps import NewportXPS
+from mynewportxps.newportxps.XPS_C8_drivers import XPSException
+from mynewportxps.newportxps.newportxps import withConnectedXPS
 import posixpath
 
 import enum
@@ -56,7 +55,7 @@ class AlicptFTS:
         self.state = FTSState.NOTINIT
         self.ntpObj = None
 
-    def initialize(self, host='192.168.254.254',username='Administrator',password='Administrator',port=5001, timeout=100):
+    def initialize(self, host='192.168.0.254',username='Administrator',password='xxxxx',port=5001, timeout=100):
         """Establish connection with each part.
         
         Parameters
@@ -462,7 +461,7 @@ if __name__ == '__main__':
             for n in range(3):
                 varlist.append('Group'+str(n)+'.Pos.'+j + i)
 
-    fts.initialize('192.168.0.254','Administrator','Administrator')
+    fts.initialize('192.168.0.254','Administrator','xxxxx')
     print('Status: Finish initialization')
     fts.status()
     fts.configure(50,0)
