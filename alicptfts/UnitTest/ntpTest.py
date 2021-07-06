@@ -37,9 +37,7 @@ def get_network_time():
     else: return None
 
 def get_time_diff():
-    #NIST = 'pool.ntp.org'
-    #ntp = ntplib.NTPClient()
-    #ntpResponse = ntp.request(NIST)
+
     ntpResponse = get_network_time()
     if (ntpResponse):
         diff = time.time() - ntpResponse

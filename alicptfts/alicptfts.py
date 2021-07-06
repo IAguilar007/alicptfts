@@ -2,22 +2,25 @@
 
 import sys
 import os
-print(os.getcwd())
-#import System
-#from System import String
+import ntplib
+import time
 
-sys.path.append(r'../lib')
+print(os.getcwd())
+# import System
+# from System import String
+
+sys.path.append(r'..')
 sys.path.append(r'lib')
 
-
-#import lib.MC2000B_COMMAND_LIB as mc2000b
+# import lib.MC2000B_COMMAND_LIB as mc2000b
 # import MC2000B_COMMAND_LIB as mc2000b
-from newportxps import NewportXPS
-from newportxps.XPS_C8_drivers import XPSException
-from newportxps.newportxps import withConnectedXPS
-
+from mynewportxps.newportxps import NewportXPS
+from mynewportxps.newportxps.XPS_C8_drivers import XPSException
+from mynewportxps.newportxps.newportxps import withConnectedXPS
+import posixpath
 
 import enum
+
 
 class FTSState(enum.Enum):
     NOTINIT  = 0
@@ -31,7 +34,11 @@ class FTSmotion(enum.Enum):
     PointingLinear = 0
     PointingRotary = 1
     MovingLinear = 2
-    
+
+groupName = {'PointingLinear': 'Group2',
+    'PointingRotary': 'Group3',
+    'MovingLinear': 'Group1'}
+
 class MC2000B:
     def __init__(self):
         pass
@@ -46,8 +53,9 @@ class AlicptFTS:
         self.chopper = None
         self.newportxps = None 
         self.state = FTSState.NOTINIT
+        self.ntpObj = None
 
-    def initialize(self, host='192.168.254.254',username='Administrator',password='Administrator',port=5001, timeout=100):
+    def initialize(self, host='192.168.0.254',username='Administrator',password='xxxxx',port=5001, timeout=100):
         """Establish connection with each part.
         
         Parameters
@@ -69,7 +77,6 @@ class AlicptFTS:
         password : string (default is Administrator)
         """
         self.check_state('initialize')
-
         
         # Current implementation considers only the XPS controller
         self.source = IR518()
@@ -77,14 +84,12 @@ class AlicptFTS:
         if (self.newportxps is None):     # Start a new connection
             try:
                 self.newportxps = NewportXPS(host=host, username=username, password=password,port=port,timeout=timeout)
-                print(xps.status_report())
+                print('STATUS: Connected to XPS')
 
-            except XPSException:
-                print('Cannot Connect to XPS')
+            except Exception:
+                print('ERROR: Cannot Connect to XPS')
                 raise
-            except:
-                print('Unkown System Reason')
-                raise
+
         else:                           # From a reboot
             try:
                 print('reboot')
@@ -93,15 +98,17 @@ class AlicptFTS:
             except Exception:
                 pass
 
-        print('STATUS: Initialize all groups')
         self.newportxps.initialize_allgroups()
-        print(xps.status_report())
-        print('STATUS: Initialize all groups')
+        print('STATUS: Initialized all groups')
         self.newportxps.home_allgroups()
-        print(xps.status_report())
+        print('STATUS: Processed home search')
         self.state = FTSState.INIT
+        self.set_motion_params('MovingLinear',[20.])
+        self.set_motion_params('PointingRotary', [20.])
+        self.set_motion_params('PointingLinear', [20.])
 
-    def configure(self, positions, relative=False):
+
+    def configure(self, position, angle, relative=False):
         """Configure the stages so that the FTS is ready to scan.
         
         One my wish to modify the motion params before configuring
@@ -112,7 +119,10 @@ class AlicptFTS:
 
         Parameters
         ----------
-        positions : array of float
+        position : float
+            Target coordinates of the pointing mirror in (position, angle).
+
+        angle : array of float
             Target coordinates of the pointing mirror in (position, angle).
 
         relative : bool
@@ -120,11 +130,11 @@ class AlicptFTS:
             original coordinates plus "positions" (default is False).
         """
         self.check_state('configure')
-
         try:
-            self.newportxps.configure_pointing(positions=positions, relative=relative)
-        except XPSException:
-            pass
+            # self.newportxps.move_stage(groupName[MovingLinear]+'.Pos',0 ,relative)
+            self.newportxps.move_stage(groupName['PointingLinear']+'.Pos',position,relative)
+            self.newportxps.move_stage(groupName['PointingRotary']+'.Pos',angle,relative)
+
         except Exception:
             pass
 
@@ -152,11 +162,39 @@ class AlicptFTS:
             Number of full back-and-forth scans (default is 15).
         """
         self.check_state('scan')
+        #self.newportxps._xps.('scan_test.dat')
+        #print()
+        if (scan_params): self.newportxps._xps.GatheringConfigurationSet(self.newportxps._sid,scan_params)
+        else: raise XPSException('ERROR: Cannot set gathering data')
+        #print('Function Status: set data gathering')
+
+
+        self.newportxps.move_stage('Group1.Pos', 50.)
+        ## self.newportxps.GatheringReset(self.newportxps._sid)
+        #print('Function Status: GatheringRun')
+        self.newportxps._xps.GatheringRun(self.newportxps._sid, len(scan_params)*10000, 8) ## max 1M
+        self.newportxps.move_stage('Group1.Pos', 200.,True)
+        print('Function Status: GatheringStop')
+        self.newportxps._xps.GatheringStop(self.newportxps._sid)
+
+        print('Function Status: GatheringStopAndSave')
+        err, mes = self.newportxps._xps.GatheringStopAndSave(self.newportxps._sid)
+        print('Function Status: Finished GatheringStopAndSave')
+        print(err)
+        print(mes)
+
+        print('Function Status: Save output')
+
         try:
-            self.set_motion_params('MovingLinear', scan_params)
-        except Exception:
-            pass
-        
+            self.newportxps.read_and_save('newGathering.dat')
+            #self.set_motion_params('MovingLinear', scan_params)
+
+        except:
+            print('Warning: Cannot download data')
+            print('Please look for data on XPS')
+            raise
+
+        '''
         self.state = FTSState.SCANNING
         try:
             timestamps = self.newportxps.scan(scan_range=scan_range, repeat=repeat)
@@ -168,10 +206,51 @@ class AlicptFTS:
         else:
             self.state = FTSState.FINISH
             return timestamps
+        
+        '''
+    def scan_event(self, scan_params=None, scan_range=None, repeat=15):
+        self.check_state('scan')
+        #self.newportxps._xps.('scan_test.dat')
+        print()
+
+        self.newportxps.GatheringReset(self.newportxps._sid)
+        if (scan_params): self.newportxps._xps.GatheringConfigurationSet(self.newportxps._sid,scan_params)
+        else: raise XPSException('ERROR: Cannot set gathering data')
+        print('Function Status: set data gathering')
+
+        self.newportxps.move_stage('Group1.Pos', 50.)
+        print('Function Status: set event trigger')
+        self.newportxps._xps.EventExtendedConfigurationTriggerSet(self.newportxps._sid,['Group1.Pos.SGamma.MotionStart'],0,0,0,0)
+        print('Function Status: set event action')
+        self.newportxps._xps.EventExtendedConfigurationActionSet(self.newportxps._sid,['GatheringRun'], 10000, 8, 0, 0)
+        #self.newportxps._xps.GatheringRun(self.newportxps._sid, len(scan_params)*10000, 8) ## max 1M
+        print('Function Status: event start')
+        self.newportxps._xps.EventExtendedStart(self.newportxps._sid)
+        self.newportxps.move_stage('Group1.Pos', 200.,True)
+        print('Function Status: GatheringStop')
+        self.newportxps._xps.GatheringStop(self.newportxps._sid)
+        print('Function Status: GatheringStopAndSave')
+        err, mes = self.newportxps._xps.GatheringStopAndSave(self.newportxps._sid)
+        print('Function Status: Finished GatheringStopAndSave')
+        print(err)
+        print(mes)
+        print('Function Status: GatheringCurrentNumberGet, ', self.newportxps._xps.GatheringCurrentNumberGet(self.newportxps._sid))
+
+        try:
+            print('Function Status: Save output')
+            self.newportxps.read_and_save('newGathering_event.dat')
+            print('nGathering: ', self.newportxps.ngathered)
+            #self.set_motion_params('MovingLinear', scan_params)
+
+        except:
+            print('Warning: Cannot download data')
+            print('Please look for data on XPS')
+
+
 
     def save(self, timestamps=None, tname='TIMESTAMPS.DAT', fname='GATHERING.DAT'):
         """Save the gathering data and timestamps after a scan.
-        
+
         Parameters
         ----------
         timestamps: array of float
@@ -198,6 +277,23 @@ class AlicptFTS:
                 self.save_timestamps(timestamps, tname)
             except Exception:
                 pass
+
+    def download_data(self, filename=None):
+        """download text of data file on newport XPS
+        Arguments:
+        ----------
+           filename  (str):   data file name. Default 'Public/Gathering.dat'
+        """
+        if (filename is None): filename = ['Public','Gathering.dat']
+        elif (type(filename) is str): filename = [filename]
+        elif (type(filename) is list): pass
+        else: raise TypeError('Require the file path (\'Public/Gathering.dat\')')
+
+        self.newportxps.ftpconn.connect(**self.newportxps.ftpargs)
+        remote_path = posixpath.join(self.newportxps.ftphome, *filename)
+        self.newportxps.ftpconn.cwd(remote_path)
+        self.newportxps.ftpconn.save(posixpath.basename(remote_path), posixpath.basename(remote_path))
+        self.newportxps.ftpconn.close()
 
     def reboot(self):
         """Reboot the system to the NOTINIT state"""
@@ -262,16 +358,46 @@ class AlicptFTS:
         except Exception:
             pass
 
+    def get_network_time(self):
+        NTPserver = ['pool.ntp.org', 'time.stanford.edu']
+        if (self.ntpObj is None): self.ntpObj = ntplib.NTPClient()
+        ntpResponse = 0
+        for server in NTPserver:
+            try:
+                ntpResponse = self.ntpObj.request(server)
+                # print('NTP SERVER: ' + server)
+                break
+            except:
+                pass
+
+        if (ntpResponse):
+            return ntpResponse.tx_time
+        else:
+            return None
+
+    def get_time_diff(self):
+
+        ntpResponse = self.get_network_time()
+        if (ntpResponse):
+            diff = time.time() - ntpResponse
+            return diff
+
+        else:
+            ## warnings.warn(message, category=None, stacklevel=1, source=None)
+            print('Warning: CANNOT Get NTP Time.')
+            print('Using Local Time.')
+            return 0
+
     ## Helper functions
     def save_timestamps(self, timestamps, tname):
         try:
-            np.savetxt(tname, np.array(timestamps), delimiter=' ')
-        except Exception:
+            print('Do Nothing')
+            #np.savetxt(tname, np.array(timestamps), delimiter=' ')
+        except FileNotFoundError:
+            print('ERROR: cannot find the output file')
             raise
 
-    # TODO
-    # We might want to promote this function to a command
-    # if it turns out to be useful during the operation
+
     def set_motion_params(self, xps_grp, params):
         """Set the SGamma profile parameters for an XPS positioner
         
@@ -281,15 +407,32 @@ class AlicptFTS:
             One of the following: PointingLinear, PointingRotary,
             and MovingLinear.
 
-        scan_params : array of float
+        params : array of float
             Scan parameters for the SGamma profile in
             [vel, acc, min_jerk_time, max_jerk_time]. Simply put the not-
             interested parameters as "None".
             Will use default values if not specificed (None).
         """
-        self.check_state('set_motion_params')
+
+        # if (xps_grp not in groupName): raise KeyError("KeyError: '{}' is not in ".format(xps_grp))
+        if (xps_grp not in groupName): raise KeyError(xps_grp)
+
+        temp_par = [None]*4
+        if (type(params) is int or type(params) is float): temp_par[0] = float(params)
+        elif (type(params) is list):
+            if (len(params) > 0):
+                for i,par in enumerate(params):
+                    if (i>=4): break
+                    temp_par[i] = par
+            else: temp_par[0] = 20.  ## Set velocity with default value
+
+        else:
+            raise TypeError('ERROR: Require a list or float for parameters')
+
         try:
-            self.newportxps.set_motion_params(xps_grp, params)
+            self.newportxps.set_velocity(groupName[xps_grp]+'.Pos',
+                                     velo=temp_par[0], accl=temp_par[1],
+                                     min_jerktime=temp_par[2], max_jerktime=temp_par[3])
         except Exception:
             pass
 
@@ -306,17 +449,32 @@ class AlicptFTS:
         elif command == 'status': pass
         elif command == 'close': pass
         else:
-            raise ValueError('Error: Invalid command')
+            print('Error: Invalid command', command)
+            #raise ValueError('Error: Invalid command')
 
 if __name__ == '__main__':
     fts = AlicptFTS()
-    fts.initialize('192.168.0.254','Administrator','Administrator')
+    varlist = []
+
+    for i in ['Position', 'Velocity', 'Acceleration']:
+        for j in ['Current', 'Setpoint']:
+            for n in range(3):
+                varlist.append('Group'+str(n)+'.Pos.'+j + i)
+
+    fts.initialize('192.168.0.254','Administrator','xxxxx')
     print('Status: Finish initialization')
     fts.status()
-    print('Test REBOOT')
-    fts.reboot()
-    fts.status()
-    print('Test Finished')
+    fts.configure(50,0)
+    print('Status: Set configure')
+    ##################
+    ## test 1
+    fts.scan(varlist)
+    ##################
+    ## test 2
+    # fts.scan_event(varlist)
+    ##################
+    print('Status: Scan Test Finished')
+    print('PASS TESTS')
     print('Disconnect...')
     fts.close()
     print('Done')
