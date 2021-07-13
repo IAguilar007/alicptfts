@@ -25,38 +25,57 @@ print(newxps.status_report())
 time.sleep(5)
 
 print()
-print('Now please start move_stage1.py in another terminal.')
-time.sleep(20)
-
-print()
 print('Status: Set Max Velocity')  # unit: mm/s
+newxps.set_velocity('Group1.Pos', 5)
 newxps.set_velocity('Group2.Pos', 5)
 newxps.set_velocity('Group3.Pos', 20)
 time.sleep(5)
 
 print()
 print('Status: Set the Initial position')
-# Initial Conditions for Stage 2 and Stage 3
+# Initial Conditions for Stages
+newxps.move_stage('Group1.Pos', 0)
 newxps.move_stage('Group2.Pos', 250)
 newxps.move_stage('Group3.Pos', 45)
 time.sleep(5)
 
 
 def upper_bound(height):
-    upper_boundary = 250 + height / math.tan(math.radians(72))
+    """
+    Finds upper bound given height between impact point 
+    on mirror and detector
+    """
+    tan_72 = math.tan(math.radians(72))
+    upper_boundary = 250 + height / tan_72
     return upper_boundary
 
 
 def lower_bound(height):
-    lower_boundary = 250 + height / math.tan(math.radians(108))
+     """
+    Finds lower bound given height between impact point 
+    on mirror and detector
+    """
+    tan_108 = math.tan(math.radians(108))
+    lower_boundary = 250 + height / tan_108
     return lower_boundary
 
 
 def clamp(length, height):
+    """
+    Takes in position (length) of the stage
+    and height between impact point on mirror
+    and detector. Outputs position with boundary
+    restraints.
+    """
     return math.trunc(max(min(length, upper_bound(height)), lower_bound(height)))
 
 
 def center_detector(number, height):
+    """
+    Inputs position and height of Stage 2
+    Outputs ideal angle such that beam hits
+    center of detector.
+    """
     ideal_angle = math.degrees(math.atan(height / (math.sqrt((number - 250) ** 2 + height ** 2) + number - 250)))
     return ideal_angle
 
