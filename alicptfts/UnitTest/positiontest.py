@@ -105,8 +105,8 @@ def main(stdscr):
                 if not angle_independent:
                     angle = center_detector(length, height)
             else:
-                if vel < MAX_VELOCITY:
-                    vel += 1
+                if vel > 0:
+                    vel -= 1
         elif ch == arrow_right:
             if not velocity:
                 if length == clamp(length - 1, height):
@@ -115,7 +115,7 @@ def main(stdscr):
                 if not angle_independent:
                     angle = center_detector(length, height)
             else:
-                if vel > 0:
+                if vel < MAX_VELOCITY:
                     vel += 1
         elif ch == ord('t'):
             angle_independent = not angle_independent
