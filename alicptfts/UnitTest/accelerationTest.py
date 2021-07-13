@@ -51,7 +51,7 @@ def upper_bound(height):
 
 
 def lower_bound(height):
-     """
+    """
     Finds lower bound given height between impact point 
     on mirror and detector
     """
