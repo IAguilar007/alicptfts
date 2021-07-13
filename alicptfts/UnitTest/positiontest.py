@@ -25,30 +25,39 @@ print(newxps.status_report())
 time.sleep(5)
 
 print()
-print('Now please start move_stage1_test.py in another terminal.')
-time.sleep(20)
-
-print()
 print('Status: Set Max Velocity')  # unit: mm/s
+newxps.set_velocity('Group1.Pos', 5)
 newxps.set_velocity('Group2.Pos', 5)
 newxps.set_velocity('Group3.Pos', 5)
 time.sleep(5)
 
 print()
 print('Status: Set the Initial position')
-# Initial Conditions for Stage 2 and Stage 3
+# Initial Conditions for Stages
+newxps.move_stage('Group1.Pos', 0)
 newxps.move_stage('Group2.Pos', 250)
 newxps.move_stage('Group3.Pos', 45)
 time.sleep(5)
 
 
 def clamp(length, height):
+    """
+    Takes in position (length) of the stage
+    and height between impact point on mirror
+    and detector. Outputs position with boundary
+    restraints.
+    """
     upper_boundary = 250 + height / math.tan(math.radians(72))
     lower_boundary = 250 + height / math.tan(math.radians(108))
     return math.trunc(max(min(length, upper_boundary), lower_boundary))
 
 
 def center_detector(number, height):
+    """
+    Inputs position and height of Stage 2
+    Outputs ideal angle such that beam hits
+    center of detector.
+    """
     ideal_angle = math.degrees(math.atan(height / (math.sqrt((number - 250) ** 2 + height ** 2) + number - 250)))
     return ideal_angle
 
@@ -65,11 +74,15 @@ def main(stdscr):
     arrow_right = 261
     angle_independent = False
     velocity = False
+    vel = 5
+    MAX_VELOCITY = 20
     stdscr.addstr(0, 0, 'Stage1: {:2f} mm Stage2: {:2f} mm Stage3: {:2f}°'.format(newxps.get_stage_position('Group1.Pos'), newxps.get_stage_position('Group2.Pos'), newxps.get_stage_position('Group3.Pos')))
     stdscr.addstr(1, 0, f"Press arrow keys for velocity") if velocity else stdscr.addstr(1, 0, f"Press arrow keys for motion")
     stdscr.addstr(2, 0, f"Press 'q' to quit the program")
     stdscr.addstr(3, 0, f"Press 't' to toggle between an independent angle and a dependent angle")
     stdscr.addstr(4, 0, f"Mode: Independent angle") if angle_independent else stdscr.addstr(4, 0, f"Mode: Dependent angle")
+    stdscr.addstr(5, 0, f"Press 'c' to change velocity and position commands")
+    stdscr.addstr(6, 0, 'Velocity; {}'.format(vel))
     while True:
         ch = stdscr.getch()
         stdscr.clear()
@@ -84,22 +97,32 @@ def main(stdscr):
             angle -= 0.1
         elif ch == arrow_up and angle_independent:
             angle += 0.1
-        elif ch == arrow_left and not velocity:
-            if length == clamp(length + 1, height):
-                stdscr.addstr(5, 0, "Can't go any more leftwards!")
-            length = clamp(length + 1, height)
-            if not angle_independent:
-                angle = center_detector(length, height)
-        elif ch == arrow_right and not velocity:
-            if length == clamp(length - 1, height):
-                stdscr.addstr(5, 0, "Can't go any more rightwards!")
-            length = clamp(length - 1, height)
-            if not angle_independent:
-                angle = center_detector(length, height)
+        elif ch == arrow_left:
+            if not velocity:
+                if length == clamp(length + 1, height):
+                    stdscr.addstr(7, 0, "Can't go any more leftwards!")
+                length = clamp(length + 1, height)
+                if not angle_independent:
+                    angle = center_detector(length, height)
+             else:
+                if vel < MAX_VELOCITY:
+                    vel += 1
+        elif ch == arrow_right:
+            if not velocity:
+                if length == clamp(length - 1, height):
+                    stdscr.addstr(7, 0, "Can't go any more rightwards!")
+                length = clamp(length - 1, height)
+                if not angle_independent:
+                    angle = center_detector(length, height)
+            else:
+                if vel > 0:
+                    vel += 1
         elif ch == ord('t'):
             angle_independent = not angle_independent
             if not angle_independent:
                 angle = center_detector(length, height)
+        elif ch == ord('c'):
+            veloicty = not velocity
         else:
             pass
         newxps.move_stage('Group2.Pos', length)
@@ -110,6 +133,8 @@ def main(stdscr):
         stdscr.addstr(2, 0, f"Press 'q' to quit the program")
         stdscr.addstr(3, 0, f"Press 't' to toggle between an independent angle and a dependent angle")
         stdscr.addstr(4, 0, f"Mode: Independent angle") if angle_independent else stdscr.addstr(4, 0, f"Mode: Dependent angle")
+        stdscr.addstr(5, 0, f"Press 'c' to change velocity and position commands")
+        stdscr.addstr(6, 0, 'Velocity; {}'.format(vel))
         stdscr.refresh()
 
 
