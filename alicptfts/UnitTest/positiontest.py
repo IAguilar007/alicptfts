@@ -104,7 +104,7 @@ def main(stdscr):
                 length = clamp(length + 1, height)
                 if not angle_independent:
                     angle = center_detector(length, height)
-             else:
+            else:
                 if vel < MAX_VELOCITY:
                     vel += 1
         elif ch == arrow_right:
@@ -122,7 +122,7 @@ def main(stdscr):
             if not angle_independent:
                 angle = center_detector(length, height)
         elif ch == ord('c'):
-            veloicty = not velocity
+            velocity = not velocity
         else:
             pass
         newxps.move_stage('Group2.Pos', length)
@@ -134,7 +134,7 @@ def main(stdscr):
         stdscr.addstr(3, 0, f"Press 't' to toggle between an independent angle and a dependent angle")
         stdscr.addstr(4, 0, f"Mode: Independent angle") if angle_independent else stdscr.addstr(4, 0, f"Mode: Dependent angle")
         stdscr.addstr(5, 0, f"Press 'c' to change velocity and position commands")
-        stdscr.addstr(6, 0, 'Velocity; {}'.format(vel))
+        stdscr.addstr(6, 0, 'Velocity: {}'.format(vel))
         stdscr.refresh()
 
 
