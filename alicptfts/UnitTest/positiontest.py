@@ -82,7 +82,7 @@ def main(stdscr):
     stdscr.addstr(3, 0, f"Press 't' to toggle between an independent angle and a dependent angle")
     stdscr.addstr(4, 0, f"Mode: Independent angle") if angle_independent else stdscr.addstr(4, 0, f"Mode: Dependent angle")
     stdscr.addstr(5, 0, f"Press 'c' to change velocity and position commands")
-    stdscr.addstr(6, 0, 'Velocity; {}'.format(vel))
+    stdscr.addstr(6, 0, 'Velocity: {}'.format(vel))
     while True:
         ch = stdscr.getch()
         stdscr.clear()
