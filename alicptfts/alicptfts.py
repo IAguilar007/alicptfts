@@ -97,7 +97,7 @@ class AlicptFTS:
                 self.newportxps.connect()      # not tested
             except Exception:
                 pass
-
+        
         self.newportxps.initialize_allgroups()
         print('STATUS: Initialized all groups')
         self.newportxps.home_allgroups()
@@ -178,10 +178,10 @@ class AlicptFTS:
         self.newportxps._xps.GatheringStop(self.newportxps._sid)
 
         print('Function Status: GatheringStopAndSave')
-        err, mes = self.newportxps._xps.GatheringStopAndSave(self.newportxps._sid)
+        #err, mes = self.newportxps._xps.GatheringStopAndSave(self.newportxps._sid)
         print('Function Status: Finished GatheringStopAndSave')
-        print(err)
-        print(mes)
+        #print(err)
+        #print(mes)
 
         print('Function Status: Save output')
 
@@ -461,7 +461,7 @@ if __name__ == '__main__':
             for n in range(3):
                 varlist.append('Group'+str(n)+'.Pos.'+j + i)
 
-    fts.initialize('192.168.0.254','Administrator','xxxxx')
+    fts.initialize('192.168.254.254','Administrator','xxxxxxxx')
     print('Status: Finish initialization')
     fts.status()
     fts.configure(50,0)
