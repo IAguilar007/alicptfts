@@ -2,24 +2,32 @@
 
 import sys
 import os
+import argparse
 import ntplib
 import time
+import enum
 
-print(os.getcwd())
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from datetime import datetime
+
+import posixpath
+print(" Current directory: " + str(os.getcwd()))
 # import System
 # from System import String
 
 sys.path.append(r'..')
 sys.path.append(r'lib')
+sys.path.append(r'..')
+sys.path.append(r'../alicptfts')
+sys.path.append(r'../alicptfts/alicptfts')
 
 # import lib.MC2000B_COMMAND_LIB as mc2000b
 # import MC2000B_COMMAND_LIB as mc2000b
 from mynewportxps.newportxps import NewportXPS
 from mynewportxps.newportxps.XPS_C8_drivers import XPSException
 from mynewportxps.newportxps.newportxps import withConnectedXPS
-import posixpath
-
-import enum
 
 
 class FTSState(enum.Enum):
@@ -55,7 +63,7 @@ class AlicptFTS:
         self.state = FTSState.NOTINIT
         self.ntpObj = None
 
-    def initialize(self, host='192.168.0.254',username='Administrator',password='xxxxx',port=5001, timeout=100):
+    def initialize(self, host='192.168.0.254',username='Administrator',password='xxxxx',port=5001, timeout=100, kill_groups=True):
         """Establish connection with each part.
         
         Parameters
@@ -77,7 +85,7 @@ class AlicptFTS:
         password : string (default is Administrator)
         """
         self.check_state('initialize')
-        
+        default_velocity = 20.
         # Current implementation considers only the XPS controller
         self.source = IR518()
         self.chopper = MC2000B()
@@ -97,15 +105,18 @@ class AlicptFTS:
                 self.newportxps.connect()      # not tested
             except Exception:
                 pass
-        
+
+        ### sometimes the groups are already initialized
+        if(kill_groups):
+            self.stop()
         self.newportxps.initialize_allgroups()
         print('STATUS: Initialized all groups')
         self.newportxps.home_allgroups()
         print('STATUS: Processed home search')
         self.state = FTSState.INIT
-        self.set_motion_params('MovingLinear',[20.])
-        self.set_motion_params('PointingRotary', [20.])
-        self.set_motion_params('PointingLinear', [20.])
+        self.set_motion_params('MovingLinear',[default_velocity])
+        self.set_motion_params('PointingRotary', [default_velocity])
+        self.set_motion_params('PointingLinear', [default_velocity])
 
 
     def configure(self, position, angle, relative=False):
@@ -452,7 +463,7 @@ class AlicptFTS:
             print('Error: Invalid command', command)
             #raise ValueError('Error: Invalid command')
 
-if __name__ == '__main__':
+def old_main():
     fts = AlicptFTS()
     varlist = []
 
@@ -479,9 +490,6 @@ if __name__ == '__main__':
     fts.close()
     print('Done')
 
-
-
-
     '''
     fts = AlicptFTS()
     fts.initialize()
@@ -491,3 +499,25 @@ if __name__ == '__main__':
     fts.save(timestamps=timestamps)
     fts.close()
     '''
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-p', '--password', help='Password to connect to the NewportXPS',
+                        default="password")
+    parser.add_argument('-a', '--ip_address', help="ip address of newport xps machine", 
+                        default='192.168.254.254')
+    args = parser.parse_args()
+    
+    password = args.password
+    ip = args.ip_address
+    user = 'Administrator'
+
+    fts = AlicptFTS()
+    fts.initialize(ip, user, password)
+
+    fts.close()
+
+
+if __name__ == '__main__':
+    main()
