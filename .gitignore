@@ -4,6 +4,7 @@ __pyache__/
 *.py.un
 *.py.un~
 *.py~
+*.dat
 example.py
 
 .gitignore~
