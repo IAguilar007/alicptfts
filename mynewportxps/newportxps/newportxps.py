@@ -129,7 +129,7 @@ class NewportXPS:
         except:
             traceback.print_exc()
             print("Could not read system.ini!!!")
-            raise XPSException()
+            raise AttributeError('Cannot read system initialization file')
 
 
     def check_error(self, err, msg='', with_raise=True):
