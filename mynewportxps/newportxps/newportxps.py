@@ -125,6 +125,7 @@ class NewportXPS:
             self.read_systemini()
         except:
             print("Could not read system.ini!!!")
+            raise AttributeError()
 
 
     def check_error(self, err, msg='', with_raise=True):
