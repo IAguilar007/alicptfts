@@ -13,11 +13,15 @@ class shell(Cmd):
         self.intro = '####### Interactive Shell #######'
 
         ## socket
-        self.hostIP = ''
+        self.hostIP = None
         self.port = self._DEFAULTPORT()  # Arbitrary non-privileged port
         self.socket = socket.socket()
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         #self.socket.settimeout(60)
+
+        ## fts
+        self.fts = None
+        self.scan_params = []
 
     def _DEFAULTPORT(self):
         return 81
@@ -51,11 +55,42 @@ class shell(Cmd):
     do_EOF = do_exit
     help_EOF = help_exit
 
+    def do_FTSinit(self,par):
+        '''FTSinit IP username password'''
+        if (not self.fts): self.fts = AlicptFTS()
+
+        paramList = list(filter(None,par.split(' ')))
+        if (len(paramList)!=3):
+            print('Require 3 parameters')
+            print('FTSinit IP username password')
+        else:
+            self.fts.initialize(paramList[0],paramList[1],paramList[2])
+            print('Status: Finish FTS initialization')
+
+    def do_FTSconfig(self,par):
+        '''FTSconfig pos angle'''
+        paramList = list(filter(None, par.split(' ')))
+        if (len(paramList) != 2):
+            print('Require 2 parameters')
+            print('FTSconfig pos angle ')
+        else:
+            self.fts.configure(float(paramList[0]),float(paramList[1]))
+
+    def do_FTSstatus(self,par):
+        '''Check the status of XPS'''
+        self.fts.status()
+
+    def do_FTSscan(self,par):
+        pass
+
+
+
+
 class clientShell(shell):
     def __init__(self):
         super().__init__()
         self.intro = '####### Interactive Client Shell #######'
-
+        self.prompt = 'cmd> '
 
     def preloop(self):
         pass
@@ -81,12 +116,15 @@ class clientShell(shell):
             self.socket.send(socket.gethostname().encode())
             cwd = self.socket.recv(1024)
             print("STATUS: connect to machine: ", cwd.decode())
+            self.prompt = 'FTScmd> '
 
 
 class serverShell(shell):
     def __init__(self):
         super().__init__()
         self.intro = '####### Interactive Server Shell #######'
+        self.prompt = 'cmd> '
+
 
 
     def preloop(self):
@@ -120,24 +158,31 @@ class serverShell(shell):
         cwd = client_socket.recv(1024).decode()
         print("STATUS: connect to machine: ", cwd)
         client_socket.send(socket.gethostname().encode())
+        self.prompt = 'FTScmd> '
+
 
 
 if __name__ == '__main__':
     # header
-    modes = ['Server','Client']
+    # modes = ['Server','Client']
     print("Choose Server or Client Mode")
-    print("Press 1 for Server and 2 for Client")
+    print("Press 1 to Server and 2 to Client")
+    print("Press ENTER to run locally")
+
     while True:
-        #mode = input("Mode: ")
-        mode = '1'
-        if (mode.isdecimal()):
-            if (int(mode)==1 or int(mode)==2):
+        mode = input("Mode: ")
+        #mode = '1'
+        if (mode.isspace() or not mode):
+            mode = '0'
+            break
+        elif (mode.isdecimal()):
+            if (int(mode)>=0 or int(mode)<=2):
                 #print(f'Open {modes[int(mode)-1]} Shell')
                 break
 
     if (int(mode)==1): serverShell().cmdloop()
-    else: clientShell().cmdloop()
-
+    elif (int(mode)==2): clientShell().cmdloop()
+    else: shell().cmdloop()
     #shell().cmdloop()
 #HLcmd().cmdloop()
 

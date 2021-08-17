@@ -8,6 +8,7 @@ import time
 print(os.getcwd())
 # import System
 # from System import String
+sys.path.append(r'../mynewportxps')
 
 sys.path.append(r'../lib')
 sys.path.append(r'lib')
