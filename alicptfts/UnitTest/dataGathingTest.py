@@ -1,5 +1,7 @@
-from newportxps import NewportXPS
-from newportxps.newportxps import withConnectedXPS
+#from newportxps import NewportXPS
+from newportxps.newportxps.newportxps import NewportXPS
+#from newportxps.newportxps import withConnectedXPS
+from newportxps.newportxps.newportxps import withConnectedXPS
 import posixpath
 
 @withConnectedXPS
