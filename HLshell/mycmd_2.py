@@ -1,3 +1,12 @@
+#!/usr/bin/env python
+
+import sys
+import os
+#sys.path.append(r'../alicptfts')
+sys.path.append(r'../../alicpt_workspace/alicptfts')
+sys.path.append(r'../alicpt_workspace/alicptfts')
+from alicptfts import AlicptFTS
+
 from cmd import Cmd
 from re import match
 import sys, os
@@ -81,7 +90,16 @@ class shell(Cmd):
         self.fts.status()
 
     def do_FTSscan(self,par):
-        pass
+        '''
+        Params: 
+            repeat -- number of times to repeat
+            scan_range -- 
+            TODO add parameters
+        '''
+        paramList = list(filter(None, par.split(' ')))
+        scan_range = (float(paramList[0]), float(paramList[1]))
+        self.fts.scan(scan_range=scan_range)
+        
 
 
 
