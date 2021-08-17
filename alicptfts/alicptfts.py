@@ -2,26 +2,30 @@
 
 import sys
 import os
+import argparse
 import ntplib
 import time
+import enum
 
-print(os.getcwd())
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from datetime import datetime
+
+import posixpath
+print(" Current directory: " + str(os.getcwd()))
 # import System
 # from System import String
-sys.path.append(r'../mynewportxps')
 
-sys.path.append(r'../lib')
+sys.path.append(r'.')
 sys.path.append(r'lib')
-
+sys.path.append(r'..')
 
 # import lib.MC2000B_COMMAND_LIB as mc2000b
 # import MC2000B_COMMAND_LIB as mc2000b
-from newportxps import NewportXPS
-from newportxps.XPS_C8_drivers import XPSException
-from newportxps.newportxps import withConnectedXPS
-import posixpath
-
-import enum
+from mynewportxps.newportxps import NewportXPS
+from mynewportxps.newportxps.XPS_C8_drivers import XPSException
+from mynewportxps.newportxps.newportxps import withConnectedXPS
 
 
 class FTSState(enum.Enum):
@@ -50,14 +54,16 @@ class IR518:
         pass
 
 class AlicptFTS:
+    HOME = (8, 0)
     def __init__(self):
         self.source = None
         self.chopper = None
         self.newportxps = None 
+        self.config = AlicptFTS.HOME
         self.state = FTSState.NOTINIT
         self.ntpObj = None
 
-    def initialize(self, host='192.168.254.254',username='Administrator',password='Administrator',port=5001, timeout=100):
+    def initialize(self, host='192.168.0.254',username='Administrator',password='xxxxx',port=5001, timeout=100, kill_groups=True):
         """Establish connection with each part.
         
         Parameters
@@ -100,14 +106,15 @@ class AlicptFTS:
             except Exception:
                 pass
 
+        ### sometimes the groups are already initialized
+        if(kill_groups):
+            self.stop()
         self.newportxps.initialize_allgroups()
         print('STATUS: Initialized all groups')
         self.newportxps.home_allgroups()
         print('STATUS: Processed home search')
         self.state = FTSState.INIT
-        self.set_motion_params('MovingLinear',[20.])
-        self.set_motion_params('PointingRotary', [20.])
-        self.set_motion_params('PointingLinear', [20.])
+        
 
 
     def configure(self, position, angle, relative=False):
@@ -136,13 +143,98 @@ class AlicptFTS:
             # self.newportxps.move_stage(groupName[MovingLinear]+'.Pos',0 ,relative)
             self.newportxps.move_stage(groupName['PointingLinear']+'.Pos',position,relative)
             self.newportxps.move_stage(groupName['PointingRotary']+'.Pos',angle,relative)
-
+            if(relative):
+                self.config = (position + self.config[0], angle + self.config[1])
+            else:
+                self.config = (position, angle)
         except Exception:
             pass
 
         self.state = FTSState.CONFIG
 
-    def scan(self, scan_params=None, scan_range=None, repeat=15):
+    def set_trigger_start(fts, groupname, socket=0, verbose=False):
+        """
+        TODO write function string
+        """
+        trigger = 'SGamma.MotionStart'
+        event_name = '.'.join([groupname, trigger])
+        err, ret = fts.newportxps._xps.EventExtendedConfigurationTriggerSet(socket, [event_name], ['0'],['0'],['0'],['0'])
+        fts.newportxps.check_error(err, msg='EventConfigTrigger')
+        if verbose:
+            print( " EventExtended Trigger Set ", ret)
+        return 
+
+    def configure_gathering_time(self, run_time, collection_resolution, socket=0, verbose=False):
+        """
+        TODO: Write function string
+        """
+        action_name = 'GatheringRun'
+        milli_to_sec = 1000 # 1000 milliseconds in a second
+        run = int(run_time * milli_to_sec) 
+        milli_to_servo = 10000 # each servo cycle is 1/8000 sec
+        servo_cycle = int(collection_resolution * milli_to_servo)
+
+        err, ret = self.newportxps._xps.EventExtendedConfigurationActionSet(socket, [action_name], 
+                                                    [str(run)], [str(servo_cycle)], ['0'], ['0'])
+        self.newportxps.check_error(err, msg='GatherConfigSet')
+        if verbose:
+            print( " Gather Run Set: " + str( ret))
+        return 
+
+    def gather_data_setup(self, gather_time, gather_resolution, gather_params, socket=0):
+        """
+        TODO: write function string
+
+        Assumes trigger is movement of first group in gather_params
+        TODO: other trigger functions
+        """
+
+        ### TODO this should probably be an input intead of coded up in here
+        start_group = gather_params[0]
+        tlist = start_group.split('.')
+        trigger_start_group = '.'.join(tlist[:2])
+        print(trigger_start_group)
+
+        self.newportxps._xps.GatheringConfigurationSet(socket, gather_params)
+        self.set_trigger_start(trigger_start_group, verbose=True)
+        self.configure_gathering_time(gather_time, gather_resolution, verbose=True)
+        eventID, m = self.newportxps._xps.EventExtendedStart(socket)
+        return eventID, trigger_start_group 
+
+    def gather_end_and_save(self, gather_filename, headers, eventID, socket=0):
+        """
+        TODO: write function string
+        """
+
+        ret = self.newportxps._xps.EventExtendedRemove(socket, eventID)
+        ret = self.newportxps._xps.GatheringStopAndSave(socket)
+        
+        self.read_and_save(gather_filename, headers)
+
+    def generate_headers(self, scan_params, time_start, time_end):
+        """
+        TODO: write function string
+        """
+        headers = []
+        timestamp = "Time start %f, Time end %f, Time diff %f" % (time_start, time_end, time_end-time_start)
+        headers.append(timestamp)
+        headers.append(";".join(scan_params))
+        return headers
+
+    def perform_movement(self, trigger_start_group, scan_range, repeat, velocity=200, accel=600, socket=0):
+        """
+        TODO: write function string
+        """
+        self.newportxps.set_velocity(trigger_start_group, velocity,accel)
+        time_start = time.time()
+        for i in range(repeat):
+            self.newportxps.move_stage(trigger_start_group, scan_range[0])
+            self.newportxps.move_stage(trigger_start_group, scan_range[1])
+        self.newportxps.move_stage(trigger_start_group, scan_range[0])
+        time_end = time.time()
+        return time_start, time_end
+
+    def scan(self, configure=None, scan_params=None, scan_range=None, repeat=5, velocity=200, accel=600, filename=None):
         """Perform a scan with the configured stages.
         
         Parameters
@@ -164,31 +256,56 @@ class AlicptFTS:
             Number of full back-and-forth scans (default is 15).
         """
         self.check_state('scan')
+        '''
         #self.newportxps._xps.('scan_test.dat')
         #print()
-        if (scan_params): self.newportxps._xps.GatheringConfigurationSet(self.newportxps._sid,scan_params)
-        else: raise XPSException('ERROR: Cannot set gathering data')
+        if (scan_params): 
+            self.newportxps._xps.GatheringConfigurationSet(self.newportxps._sid,scan_params)
+        else: 
+            raise XPSException('ERROR: Cannot set gathering data')
         #print('Function Status: set data gathering')
-
-
+        '''
+        if(scan_params is None):
+            ## TODO put function in class
+            scan_params = generate_scanparams()
+        if(scan_range is None):
+            ## TODO acquire this from newportxps instead of hardcode
+            min_range = 0
+            max_range = 500
+            scan_range = [min_range, max_range]
+        if(configure is not None):
+            self.configure(configure[0], configure[1])
+        else:
+            configure = self.config
+        gather_time = 20 #self.calculate_gather_time()
+        gather_resolution = 0.001
+        event_ID, trigger_start_group = self.gather_data_setup(gather_time, gather_resolution, scan_params)
+        time_start, time_end = self.perform_movement(trigger_start_group, scan_range, repeat, velocity=velocity, accel=accel)
+        #self.newportxps.move_stage('Group1.Pos', 200, True)
+        if(filename is None):
+            filename = 'scan_range_%d_%d__configure_%d_%d.dat' % (scan_range[0], scan_range[1], configure[0], configure[1])
+        headers = self.generate_headers(scan_params, time_start, time_end)
+        self.gather_end_and_save(filename, headers, event_ID)
+        '''
+        
         self.newportxps.move_stage('Group1.Pos', 50.)
         ## self.newportxps.GatheringReset(self.newportxps._sid)
         #print('Function Status: GatheringRun')
-        self.newportxps._xps.GatheringRun(self.newportxps._sid, len(scan_params)*10000, 8) ## max 1M
+        #self.newportxps._xps.GatheringRun(self.newportxps._sid, len(scan_params)*10000, 8) ## max 1M
         self.newportxps.move_stage('Group1.Pos', 200.,True)
         print('Function Status: GatheringStop')
         self.newportxps._xps.GatheringStop(self.newportxps._sid)
 
         print('Function Status: GatheringStopAndSave')
-        err, mes = self.newportxps._xps.GatheringStopAndSave(self.newportxps._sid)
+        #err, mes = self.newportxps._xps.GatheringStopAndSave(self.newportxps._sid)
         print('Function Status: Finished GatheringStopAndSave')
-        print(err)
-        print(mes)
+        #print(err)
+        #print(mes)
 
         print('Function Status: Save output')
 
         try:
-            self.newportxps.read_and_save('newGathering.dat')
+            self.read_and_save('newGathering.dat', [])
             #self.set_motion_params('MovingLinear', scan_params)
 
         except:
@@ -196,7 +313,7 @@ class AlicptFTS:
             print('Please look for data on XPS')
             raise
 
-        '''
+        
         self.state = FTSState.SCANNING
         try:
             timestamps = self.newportxps.scan(scan_range=scan_range, repeat=repeat)
@@ -431,13 +548,96 @@ class AlicptFTS:
         else:
             raise TypeError('ERROR: Require a list or float for parameters')
 
-        try:
-            self.newportxps.set_velocity(groupName[xps_grp]+'.Pos',
+      
+        self.newportxps.set_velocity(groupName[xps_grp]+'.Pos',
                                      velo=temp_par[0], accl=temp_par[1],
                                      min_jerktime=temp_par[2], max_jerktime=temp_par[3])
-        except Exception:
-            pass
+    
 
+    
+    def determine_num_chunks(self, total_lines, socket=0, max_entries=5000):
+        """Determines the number of chunks to breakup the Gathering.dat file
+            to be able to read into python
+        
+        Parameters
+        ----------
+        total_lines : int
+            number of total lines in the Gathering.dat file
+
+        socket : int
+            the xps socket to connect to in order to execute this command
+        
+        max_lines : int
+            maximum number of entries to read in per chunk
+
+        Returns 
+        -----------
+        nchunks : int
+            number of chunks to break up Gathering.dat
+        """
+        
+        ret, msg = self.newportxps._xps.GatheringDataMultipleLinesGet(socket, 0, 1)
+        num_entries = len(msg.split(';'))
+        print(num_entries)
+        max_lines = max_entries / num_entries
+        nchunks = int(total_lines/max_lines)+1
+        num_lines = total_lines 
+        success = False
+        while(not success):
+            print('Current number of chunks ' + str(nchunks))
+            ret, _ = self.newportxps._xps.GatheringDataMultipleLinesGet(socket, 0, int(num_lines))
+            print('Current number of lines ' + str(num_lines))
+            if(ret < 0):
+                nchunks *= 1.5
+                num_lines = total_lines/nchunks 
+                
+            else:
+                print('Success')
+                success = True 
+            
+            if(num_lines < 10):
+                raise AttributeError('XPS not reading even though small enough chunks')
+        return int(nchunks) 
+
+    def read_and_save(self, filename, headers, socket=0):
+        """Reads the Gathering.dat file on the XPS machine and saves it 
+            to filename
+        
+        Parameters
+        ----------
+        filename : str
+            path/to/location of file for saving the Gathering.dat info
+
+        headers : list of str
+            A list of headers to write on top of the file. Each item in the list
+            will be a separate line
+        
+        socket : int
+            the xps socket to connect to in order to execute this command
+
+        Returns 
+        -----------
+        None
+        """
+        
+        ret, total_lines, max_lines = self.newportxps._xps.GatheringCurrentNumberGet(socket)
+        nchunks = self.determine_num_chunks(total_lines, socket)
+        print('Number of chunks: ' + str(nchunks))
+        lines_per_chunk = int(total_lines/nchunks)
+        remaining_lines = total_lines - lines_per_chunk*nchunks
+        with open(filename, 'w') as f:
+            for header in headers:
+                f.write("## " + header + "\n")
+            for i in range(nchunks):
+                start = lines_per_chunk*i 
+                ret, buffer = self.newportxps._xps.GatheringDataMultipleLinesGet(socket, start, lines_per_chunk)
+                f.write(buffer)
+            start = lines_per_chunk * nchunks
+            ret, buffer = self.newportxps._xps.GatheringDataMultipleLinesGet(socket, start, remaining_lines)
+            f.write(buffer)
+        return 
+    
+    
     ## TODO
     def check_state(self, command):
         if command == 'initialize': pass
@@ -454,7 +654,19 @@ class AlicptFTS:
             print('Error: Invalid command', command)
             #raise ValueError('Error: Invalid command')
 
-if __name__ == '__main__':
+def generate_scanparams(num_groups=3, 
+                    param_list = ['Position', 'Velocity', 'Acceleration'],
+                    point_types = ['Current', 'Setpoint']):
+    varlist = []
+
+    for i in param_list:
+        for j in point_types:
+            for n in range(1, num_groups+1):
+                varlist.append('Group'+str(n)+'.Pos.'+j + i)
+
+    return varlist
+
+def old_main():
     fts = AlicptFTS()
     varlist = []
 
@@ -463,7 +675,7 @@ if __name__ == '__main__':
             for n in range(3):
                 varlist.append('Group'+str(n)+'.Pos.'+j + i)
 
-    fts.initialize('192.168.0.254','Administrator','Administrator')
+    fts.initialize('192.168.254.254','Administrator','xxxxxxxx')
     print('Status: Finish initialization')
     fts.status()
     fts.configure(50,0)
@@ -481,9 +693,6 @@ if __name__ == '__main__':
     fts.close()
     print('Done')
 
-
-
-
     '''
     fts = AlicptFTS()
     fts.initialize()
@@ -493,3 +702,42 @@ if __name__ == '__main__':
     fts.save(timestamps=timestamps)
     fts.close()
     '''
+
+def test_function(fts):
+    scan_params = generate_scanparams(param_list=['Position'], point_types=['Setpoint'])
+    print(scan_params)
+
+    default_velocity1 = 20.
+    default_velocity2 = 20.
+    default_velocity3 = 20.
+    fts.set_motion_params('MovingLinear',[default_velocity1])
+    fts.set_motion_params('PointingRotary', [default_velocity3])
+    fts.set_motion_params('PointingLinear', [default_velocity2])
+    print('STATUS: Done setting motion parameters')
+
+    print('************ scanning params ******************')
+    fts.scan(scan_params=scan_params, configure=(30, 5), scan_range=(20, 80), repeat=3)
+    fts.scan(scan_params=scan_params, configure=(300, 50), scan_range=(20, 80), repeat=3)
+    fts.scan(scan_params=scan_params, configure=(60, 35), scan_range=(20, 80), repeat=3)
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-p', '--password', help='Password to connect to the NewportXPS',
+                        default="password")
+    parser.add_argument('-a', '--ip_address', help="ip address of newport xps machine", 
+                        default='192.168.254.254')
+    args = parser.parse_args()
+    
+    password = args.password
+    ip = args.ip_address
+    user = 'Administrator'
+
+    fts = AlicptFTS()
+
+    fts.initialize(ip, user, password)
+    test_function(fts)
+    fts.close()
+
+
+if __name__ == '__main__':
+    main()
