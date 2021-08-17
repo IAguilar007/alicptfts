@@ -6,8 +6,6 @@ import posixpath
 import sys
 import time
 import socket
-import traceback
-
 from collections import OrderedDict
 from .debugtime import debugtime
 from six.moves import StringIO
@@ -123,11 +121,9 @@ class NewportXPS:
             self.ftpconn = FTPWrapper(**self.ftpargs)
             if 'XPS-C' in self.firmware_version:
                 self.ftphome = '/Admin'
-        
         try:
             self.read_systemini()
         except:
-            traceback.print_exc()
             print("Could not read system.ini!!!")
             raise AttributeError('Cannot read system initialization file')
 
