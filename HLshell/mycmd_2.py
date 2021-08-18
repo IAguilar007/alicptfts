@@ -2,9 +2,10 @@
 
 import sys
 import os
-#sys.path.append(r'../alicptfts')
-sys.path.append(r'../../alicpt_workspace/alicptfts')
-sys.path.append(r'../alicpt_workspace/alicptfts')
+sys.path.append(r'../alicptfts')
+sys.path.append(r'./alicptfts')
+#sys.path.append(r'../../alicpt_workspace/alicptfts')
+#sys.path.append(r'../alicpt_workspace/alicptfts')
 from alicptfts import AlicptFTS
 
 from cmd import Cmd
