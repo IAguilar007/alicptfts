@@ -13,6 +13,36 @@ from re import match
 import sys, os
 import socket
 from io import StringIO
+from functools import wraps
+
+def toNum(x):
+    try:
+        return int(x)
+    except ValueError:
+        try:
+            return float(x)
+        except:
+            return x
+
+## Syntactic sugar fucntion
+def parser(convertNum=True):
+    def parser_base(func):
+        @wraps(func)
+        def wrapper(self,param):
+            if (type(param)==str):
+                params = list(filter(None,param.split(' ')))
+            else:
+                params = param
+
+            if (convertNum):
+                try:
+                    params = tuple(map(toNum, params))
+                except:
+                    pass
+            return func(self,*params)
+
+        return wrapper
+    return parser_base
 
 class shell(Cmd):
 
@@ -20,7 +50,8 @@ class shell(Cmd):
         ## Cmd
         Cmd.__init__(self)
         self.prompt = 'FTScmd> '
-        self.intro = '####### Interactive Shell #######'
+        self.intro = '####### Interactive Shell #######\nType help or ? to list commands.\n'
+
 
         ## socket
         self.hostIP = None
@@ -33,12 +64,19 @@ class shell(Cmd):
         self.fts = None
         self.scan_params = []
 
+
+    @parser()
+    def do_testType(self,*params):
+        print('self ',self,params)
+        for i in params:
+            print(type(i))
+
     def _DEFAULTPORT(self):
         return 81
 
     def do_exit(self):
         '''exit the shell'''
-        print("EXIT")
+        print("########### EXIT SHELL ###########")
         return True
 
     def help_exit(self):
@@ -47,6 +85,8 @@ class shell(Cmd):
     def default(self, inp):
         if inp == 'q' or bool(match(inp,'qqq+')):
             return self.do_exit()
+        else:
+            print("Command Not Found:", inp.split(' ')[0], file=sys.stderr)
 
     def run_command(command):
         temp_out = StringIO()
@@ -62,14 +102,13 @@ class shell(Cmd):
         if (err): print(err, file=sys.stderr, end='')
         return out, err
 
-    do_EOF = do_exit
-    help_EOF = help_exit
 
-    def do_FTSinit(self,par):
+    @parser()
+    def do_FTSinit(self,*paramList):
         '''FTSinit IP username password'''
         if (not self.fts): self.fts = AlicptFTS()
 
-        paramList = list(filter(None,par.split(' ')))
+        #paramList = list(filter(None,par.split(' ')))
         if (len(paramList)!=3):
             print('Require 3 parameters')
             print('FTSinit IP username password')
@@ -77,31 +116,39 @@ class shell(Cmd):
             self.fts.initialize(paramList[0],paramList[1],paramList[2])
             print('Status: Finish FTS initialization')
 
-    def do_FTSconfig(self,par):
+    @parser()
+    def do_FTSconfig(self,*paramList):
         '''FTSconfig pos angle'''
-        paramList = list(filter(None, par.split(' ')))
+
+        #paramList = list(filter(None, par.split(' ')))
         if (len(paramList) != 2):
             print('Require 2 parameters')
             print('FTSconfig pos angle ')
         else:
-            self.fts.configure(float(paramList[0]),float(paramList[1]))
+            self.fts.configure(paramList[0],paramList[1])
 
     def do_FTSstatus(self,par):
         '''Check the status of XPS'''
         self.fts.status()
 
-    def do_FTSscan(self,par):
+    @parser()
+    def do_FTSscan(self,*paramList):
         '''
         Params: 
             repeat -- number of times to repeat
             scan_range -- 
             TODO add parameters
         '''
-        paramList = list(filter(None, par.split(' ')))
-        scan_range = (float(paramList[0]), float(paramList[1]))
+        #paramList = list(filter(None, par.split(' ')))
+        scan_range = (paramList[0], paramList[1])
         self.fts.scan(scan_range=scan_range)
         
+    ## Remove unwant undoc commands
+    do_EOF = do_exit
+    self.__hidden = ('do_EOF','do_testType')
 
+    def get_names(self):
+        return [n for n in dir(self.__class__) if n not in self.__hidden]
 
 
 
@@ -143,7 +190,6 @@ class serverShell(shell):
         super().__init__()
         self.intro = '####### Interactive Server Shell #######'
         self.prompt = 'cmd> '
-
 
 
     def preloop(self):
@@ -198,6 +244,8 @@ if __name__ == '__main__':
             if (int(mode)>=0 or int(mode)<=2):
                 #print(f'Open {modes[int(mode)-1]} Shell')
                 break
+        elif mode == 'q' or bool(match(mode, 'qqq+')):
+            exit()
 
     if (int(mode)==1): serverShell().cmdloop()
     elif (int(mode)==2): clientShell().cmdloop()
