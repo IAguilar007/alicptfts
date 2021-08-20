@@ -55,6 +55,16 @@ class IR518:
 
 class AlicptFTS:
     HOME = (8, 0)
+    MIN_VEL = 1
+    MAX_VEL = 200
+    MIN_ACCEL = 1
+    MAX_ACCEL = 600
+
+    MAX_R_VEL = 20
+    MAX_R_ACCEL = 80
+
+    MIN_POS = 0
+    MAX_POS = 500
     def __init__(self):
         self.source = None
         self.chopper = None
@@ -235,7 +245,7 @@ class AlicptFTS:
         time_end = time.time()
         return time_start, time_end
 
-    def scan(self, configure=None, scan_params=None, scan_range=None, repeat=5, velocity=None, accel=None, filename=None):
+    def scan(self, configure=None, scan_params=None, scan_range=None, repeat=5, velocity=None, accel=None, filename=None, folder=None):
         """Perform a scan with the configured stages.
         
         Parameters
@@ -285,8 +295,13 @@ class AlicptFTS:
         #self.newportxps.move_stage('Group1.Pos', 200, True)
         if(filename is None):
             filename = 'scan_range_%d_%d__configure_%d_%d.dat' % (scan_range[0], scan_range[1], configure[0], configure[1])
+
+        if(folder is None):
+            folder = 'saved_gathering_files'
+
+        file_path = os.path.join(folder, filename)
         headers = self.generate_headers(scan_params, time_start, time_end)
-        self.gather_end_and_save(filename, headers, event_ID)
+        self.gather_end_and_save(file_path, headers, event_ID)
         '''
         
         self.newportxps.move_stage('Group1.Pos', 50.)

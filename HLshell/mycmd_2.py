@@ -83,16 +83,18 @@ class shell(Cmd):
             print('FTSsettings stagename velocity acceleration')
             return 
 
-        MAX_VEL = 200
-        MAX_ACC = 600
+        MAX_VEL = AlicptFTS.MAX_VEL
+        MAX_ACC = AlicptFTS.MAX_ACCEL
 
-        min_val = 1
+        min_accel = AlicptFTS.MIN_ACCEL
+        min_vel = AlicptFTS.MIN_VEL
+
         if(paramList[0] == 'PL'):
             stagename = 'PointingLinear'
             
         elif(paramList[0] == 'PR'):
-            MAX_VEL = 20
-            MAX_ACC = 80
+            MAX_VEL = AlicptFTS.MAX_R_VEL
+            MAX_ACC = AlicptFTS.MAX_R_ACCEL
             stagename = 'PointingRotary' 
         
         elif(paramList[0] == 'ML'):
@@ -109,11 +111,11 @@ class shell(Cmd):
         except ValueError:
             print('Velocity and acceleration must be floats')
 
-        if (velocity < min_val or velocity > MAX_VEL):
+        if (velocity < min_vel or velocity > MAX_VEL):
             print('Velocity not in allowed range')
             return 
 
-        if (acceleration < min_val or acceleration > MAX_ACC):
+        if (acceleration < min_accel or acceleration > MAX_ACC):
             print('Acceleration not in allowed range')
             return 
 
@@ -122,6 +124,7 @@ class shell(Cmd):
 
     def do_FTSinit(self,par):
         '''FTSinit IP username password
+
         This is required to initialize the NewportXPS machine before anything else is run.
         '''
         if (not self.fts): self.fts = AlicptFTS()
@@ -136,6 +139,7 @@ class shell(Cmd):
 
     def do_FTSconfig(self,par):
         '''FTSconfig pos angle
+
         Position is between 0 and 500. Moves the PL (pointing linear) to desired location.
         Angle is in degrees. No range limit. Rotates the PR (pointing rotary) to desired angle.
         '''
@@ -147,6 +151,9 @@ class shell(Cmd):
             print('Require 2 parameters')
             print('FTSconfig pos angle ')
             return 
+
+        min_pos = AlicptFTS.MIN_POS
+        max_pos = AlicptFTS.MAX_POS
         try:
             pos = float(paramList[0])
         except ValueError:
@@ -171,10 +178,13 @@ class shell(Cmd):
         self.fts.status()
 
     def do_FTSscan(self,par):
-        '''FTSscan n_repeat scan_range_min scan_range_max
+        '''FTSscan n_repeat scan_range_min scan_range_max filename(optional)
+
         n_repeat is number of times to repeat the scan
         scan_range_min and _max must be between 0 and 500
         Scanning velocity can be changed in FTSsettings, where the stagename is ML (moving linear)
+        If the filename is specified, the scanning saves the stage positions into the file. Otherwise, the
+            information is saved in scan_range_[min]_[max]__configure_[pos]_[angle].dat
         '''
         if(self.fts is None):
             print('FTS not yet initialized!')
@@ -185,8 +195,8 @@ class shell(Cmd):
             print('FTSscan n_repeat scan_range_min scan_range_max filename(optional)')
             return
 
-        min_scan = 0
-        max_scan = 500
+        min_scan = AlicptFTS.MIN_POS
+        max_scan = AlicptFTS.MAX_POS
         try:
             scan_range = (float(paramList[1]), float(paramList[2]))
         except ValueError:
