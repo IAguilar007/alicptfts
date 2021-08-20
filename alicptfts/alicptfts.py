@@ -221,11 +221,12 @@ class AlicptFTS:
         headers.append(";".join(scan_params))
         return headers
 
-    def perform_movement(self, trigger_start_group, scan_range, repeat, velocity=200, accel=600, socket=0):
+    def perform_movement(self, trigger_start_group, scan_range, repeat, velocity=None, accel=None, socket=0):
         """
         TODO: write function string
         """
-        self.newportxps.set_velocity(trigger_start_group, velocity,accel)
+        if(velocity is not None):
+            self.newportxps.set_velocity(trigger_start_group, velocity,accel)
         time_start = time.time()
         for i in range(repeat):
             self.newportxps.move_stage(trigger_start_group, scan_range[0])
@@ -234,7 +235,7 @@ class AlicptFTS:
         time_end = time.time()
         return time_start, time_end
 
-    def scan(self, configure=None, scan_params=None, scan_range=None, repeat=5, velocity=200, accel=600, filename=None):
+    def scan(self, configure=None, scan_params=None, scan_range=None, repeat=5, velocity=None, accel=None, filename=None):
         """Perform a scan with the configured stages.
         
         Parameters
@@ -535,7 +536,7 @@ class AlicptFTS:
 
         # if (xps_grp not in groupName): raise KeyError("KeyError: '{}' is not in ".format(xps_grp))
         if (xps_grp not in groupName): raise KeyError(xps_grp)
-
+        default_velocity  = 20
         temp_par = [None]*4
         if (type(params) is int or type(params) is float): temp_par[0] = float(params)
         elif (type(params) is list):
@@ -543,7 +544,7 @@ class AlicptFTS:
                 for i,par in enumerate(params):
                     if (i>=4): break
                     temp_par[i] = par
-            else: temp_par[0] = 20.  ## Set velocity with default value
+            else: temp_par[0] = default_velocity  ## Set velocity with default value
 
         else:
             raise TypeError('ERROR: Require a list or float for parameters')
