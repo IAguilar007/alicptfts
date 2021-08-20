@@ -66,7 +66,7 @@ class shell(Cmd):
     help_EOF = help_exit
 
     def do_FTSsettings(self, par):
-        '''FTSsettings stagename velocity acceleration  
+        '''Command: FTSsettings stagename velocity acceleration  
         
         Stagename can be PL (pointing linear), PR (pointing rotary), or ML (moving linear)
         Velocity must be between 1 and 200 (1 and 20 for PR)
@@ -75,12 +75,12 @@ class shell(Cmd):
         '''
 
         if(self.fts is None):
-            print('FTS not yet initialized!')
+            print('*****FTS not yet initialized!')
             return 
         paramList = list(filter(None,par.split(' ')))
         if (len(paramList)!=3):
-            print('Require 3 parameters')
-            print('FTSsettings stagename velocity acceleration')
+            print('*****Require 3 parameters')
+            print('*****FTSsettings stagename velocity acceleration')
             return 
 
         MAX_VEL = AlicptFTS.MAX_VEL
@@ -101,7 +101,7 @@ class shell(Cmd):
             stagename = 'MovingLinear'
         
         else:
-            print('Requires stagename to be either PL, PR, or ML ' +
+            print('*****Requires stagename to be either PL, PR, or ML ' +
                 '(pointing linear, pointing rotary, or moving linear)')
             return 
 
@@ -109,21 +109,21 @@ class shell(Cmd):
             velocity = float(paramList[1])
             acceleration = float(paramList[2])
         except ValueError:
-            print('Velocity and acceleration must be floats')
+            print('*****Velocity and acceleration must be floats')
 
         if (velocity < min_vel or velocity > MAX_VEL):
-            print('Velocity not in allowed range')
+            print('*****Velocity not in allowed range')
             return 
 
         if (acceleration < min_accel or acceleration > MAX_ACC):
-            print('Acceleration not in allowed range')
+            print('*****Acceleration not in allowed range')
             return 
 
 
         self.fts.set_motion_params(stagename, [velocity, acceleration])
 
     def do_FTSinit(self,par):
-        '''FTSinit IP username password
+        '''Command: FTSinit IP username password
 
         This is required to initialize the NewportXPS machine before anything else is run.
         '''
@@ -131,25 +131,25 @@ class shell(Cmd):
 
         paramList = list(filter(None,par.split(' ')))
         if (len(paramList)!=3):
-            print('Require 3 parameters')
-            print('FTSinit IP username password')
+            print('*****Require 3 parameters')
+            print('*****FTSinit IP username password')
         else:
             self.fts.initialize(paramList[0],paramList[1],paramList[2])
             print('Status: Finish FTS initialization')
 
     def do_FTSconfig(self,par):
-        '''FTSconfig pos angle
+        '''Command: FTSconfig pos angle
 
         Position is between 0 and 500. Moves the PL (pointing linear) to desired location.
         Angle is in degrees. No range limit. Rotates the PR (pointing rotary) to desired angle.
         '''
         if(self.fts is None):
-            print('FTS not yet initialized!')
+            print('*****FTS not yet initialized!')
             return 
         paramList = list(filter(None, par.split(' ')))
         if (len(paramList) != 2):
-            print('Require 2 parameters')
-            print('FTSconfig pos angle ')
+            print('*****Require 2 parameters')
+            print('*****FTSconfig pos angle ')
             return 
 
         min_pos = AlicptFTS.MIN_POS
@@ -157,28 +157,28 @@ class shell(Cmd):
         try:
             pos = float(paramList[0])
         except ValueError:
-            print('Position must be a float')
+            print('*****Position must be a float')
             return 
         if(pos < min_pos or pos > max_pos):
-            print('Position not within range')
+            print('*****Position not within range')
             return 
         
         try:
             angle = float(paramList[1])
         except ValueError:
-            print('Angle must be a float')
+            print('*****Angle must be a float')
 
         self.fts.configure(pos, angle)
 
     def do_FTSstatus(self,par):
         '''Check the status of XPS'''
         if(self.fts is None):
-            print('FTS not yet initialized!')
+            print('*****FTS not yet initialized!')
             return 
         self.fts.status()
 
     def do_FTSscan(self,par):
-        '''FTSscan n_repeat scan_range_min scan_range_max filename(optional)
+        '''Command: FTSscan n_repeat scan_range_min scan_range_max filename(optional)
 
         n_repeat is number of times to repeat the scan
         scan_range_min and _max must be between 0 and 500
@@ -187,12 +187,12 @@ class shell(Cmd):
             information is saved in scan_range_[min]_[max]__configure_[pos]_[angle].dat
         '''
         if(self.fts is None):
-            print('FTS not yet initialized!')
+            print('*****FTS not yet initialized!')
             return 
         paramList = list(filter(None, par.split(' ')))
         if (len(paramList)!=3 and len(paramList)!=4):
-            print('Require 3 or 4parameters')
-            print('FTSscan n_repeat scan_range_min scan_range_max filename(optional)')
+            print('*****Require 3 or 4 parameters')
+            print('*****FTSscan n_repeat scan_range_min scan_range_max filename(optional)')
             return
 
         min_scan = AlicptFTS.MIN_POS
@@ -200,18 +200,18 @@ class shell(Cmd):
         try:
             scan_range = (float(paramList[1]), float(paramList[2]))
         except ValueError:
-            print('Scan range must be input as floats')
+            print('*****Scan range must be input as floats')
             return 
         if(scan_range[0] > scan_range[1]):
-            print('Min scan range must be smaller than max scan range')
+            print('*****Min scan range must be smaller than max scan range')
             return 
         elif(scan_range[0] < min_scan or scan_range[1] > max_scan):
-            print('Scan range not within range')
+            print('*****Scan range not within range')
             return 
         try:
             n_repeat = int(paramList[0])
         except ValueError:
-            print('n_repeat must be an integer')
+            print('*****n_repeat must be an integer')
             return 
 
         filename = None
