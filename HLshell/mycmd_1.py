@@ -117,7 +117,6 @@ class shell(Cmd):
         temp_err = StringIO()
         sys.stdout = temp_out
         sys.stderr = temp_err
-
         try:
             func(line)
         except:
@@ -437,7 +436,7 @@ if __name__ == '__main__':
 
     while True:
         #mode = input("Mode: ")
-        mode = '2'
+        mode = '1'
         if (mode.isspace() or not mode):
             mode = '0'
             break
@@ -451,4 +450,5 @@ if __name__ == '__main__':
     if (int(mode)==1): serverShell().cmdloop()
     elif (int(mode)==2): clientShell().cmdloop()
     else: shell().cmdloop()
+
 
