@@ -52,17 +52,18 @@ class shell(Cmd):
         self.prompt = 'FTScmd> '
         self.intro = '####### Interactive Shell #######\nType help or ? to list commands.\n'
 
-
         ## socket
         self.hostIP = None
         self.port = self._DEFAULTPORT()  # Arbitrary non-privileged port
         self.socket = socket.socket()
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         #self.socket.settimeout(60)
+        self.BUFFER_SIZE = 1024 * 128
 
         ## fts
         self.fts = None
         self.scan_params = []
+        self.doRemote = False
 
 
     @parser()
@@ -88,12 +89,16 @@ class shell(Cmd):
         else:
             print("Command Not Found:", inp.split(' ')[0], file=sys.stderr)
 
-    def run_command(command):
+    def run_command(func=exec,line="print('run python command')"):
         temp_out = StringIO()
         temp_err = StringIO()
         sys.stdout = temp_out
         sys.stderr = temp_err
-        exec(command)
+        try:
+            func(line)
+        except:
+            print('Error: ' + func.__name__ + '('+line+')',file=sys.stderr)
+
         sys.stdout = sys.__stdout__
         sys.stderr = sys.__stderr__
         out = temp_out.getvalue()
@@ -102,10 +107,9 @@ class shell(Cmd):
         if (err): print(err, file=sys.stderr, end='')
         return out, err
 
-
-
     @parser()
-    def do_FTSinit(self,*paramList):
+    @_checkInit
+    def do_FTSsettings(self,*paramList):
         '''Command: FTSsettings stagename velocity acceleration  
         
         Stagename can be PL (pointing linear), PR (pointing rotary), or ML (moving linear)
@@ -114,9 +118,11 @@ class shell(Cmd):
         PR and PL are moved with FTSconfig, and ML is moved with FTSscan
         '''
 
+        '''
         if(self.fts is None):
             print('*****FTS not yet initialized!')
             return 
+        '''
 
         if (len(paramList)!=3):
             print('*****Require 3 parameters')
@@ -160,7 +166,6 @@ class shell(Cmd):
             print('*****Acceleration not in allowed range')
             return 
 
-
         self.fts.set_motion_params(stagename, [velocity, acceleration])
 
     @parser()
@@ -172,25 +177,34 @@ class shell(Cmd):
 
         if (not self.fts): self.fts = AlicptFTS()
 
-        #paramList = list(filter(None,par.split(' ')))
         if (len(paramList)!=3):
             print('*****Require 3 parameters')
             print('*****FTSinit IP username password')
         else:
-            self.fts.initialize(paramList[0],paramList[1],paramList[2])
-            print('Status: Finish FTS initialization')
+            try:
+                self.fts.initialize(paramList[0],paramList[1],paramList[2])
+                print('Status: Finish FTS initialization')
+            except typeError:
+                print('IP(str) username(str) password(str)')
+
+
 
 
     @parser()
+    @_checkInit
     def do_FTSconfig(self,*paramList):
         '''Command: FTSconfig pos angle
 
         Position is between 0 and 500. Moves the PL (pointing linear) to desired location.
         Angle is in degrees. No range limit. Rotates the PR (pointing rotary) to desired angle.
         '''
+
+        '''
         if(self.fts is None):
             print('*****FTS not yet initialized!')
-            return 
+            return
+        '''
+
  
         if (len(paramList) != 2):
             print('*****Require 2 parameters')
@@ -215,27 +229,34 @@ class shell(Cmd):
 
         self.fts.configure(pos, angle)
 
-
+    @_checkInit
     def do_FTSstatus(self,par):
         '''Check the status of XPS'''
+        '''
         if(self.fts is None):
             print('*****FTS not yet initialized!')
-            return 
+            return
+        '''
+
         self.fts.status()
 
     @parser()
+    @_checkInit
     def do_FTSscan(self,*paramList):
         '''Command: FTSscan n_repeat scan_range_min scan_range_max filename(optional)
 
         n_repeat is number of times to repeat the scan
-        scan_range_min and _max must be between 0 and 500
+        scan_range_min and _max must be between 0 and 500 (mm)
         Scanning velocity can be changed in FTSsettings, where the stagename is ML (moving linear)
         If the filename is specified, the scanning saves the stage positions into the file. Otherwise, the
             information is saved in scan_range_[min]_[max]__configure_[pos]_[angle].dat
         '''
+
+        '''
         if(self.fts is None):
             print('*****FTS not yet initialized!')
             return 
+        '''
 
         if (len(paramList)<3 or len(paramList)>4):
             print('*****Require 3 or 4 parameters')
@@ -248,13 +269,15 @@ class shell(Cmd):
             scan_range = (float(paramList[1]), float(paramList[2]))
         except ValueError:
             print('*****Scan range must be input as floats')
-            return 
+            return
+
         if(scan_range[0] > scan_range[1]):
             print('*****Min scan range must be smaller than max scan range')
             return 
         elif(scan_range[0] < min_scan or scan_range[1] > max_scan):
             print('*****Scan range not within range')
-            return 
+            return
+
         try:
             n_repeat = int(paramList[0])
         except ValueError:
@@ -266,29 +289,47 @@ class shell(Cmd):
             filename = paramList[3]
         self.fts.scan(repeat=n_repeat, scan_range=scan_range, filename=filename)
 
-        
+
+    def _checkInit(func):
+        @wraps(func)
+        def wrapper(*params,**kargs):
+            try:
+                if (params[0].fts is None):  ## params[0] = self
+                    print('***** FTS is not yet initialized!',file=sys.stderr)
+                    return lambda *params, **kargs: None
+                else:  ## Connect
+                    return func(*params,**kargs)
+            except:
+                ''' len(params)==0 '''
+                raise Exception('Syntax error: cannot check Initialization')
+
+        return wrapper
+
+
     ## Remove unwant undoc commands
     do_EOF = do_exit
     self.__hidden = ('do_EOF','do_testType')
 
-    def get_names(self):
+    def get_names(self): ## Don't change the name
         return [n for n in dir(self.__class__) if n not in self.__hidden]
 
 
-
+## Laptop
 class clientShell(shell):
     def __init__(self):
         super().__init__()
         self.intro = '####### Interactive Client Shell #######'
         self.prompt = 'cmd> '
+        self.doRemote = True
 
     def preloop(self):
         pass
         #print('Open Client Shell')
 
-    def do_connect(self,par):
+    @parser()
+    def do_connect(self,*paramList):
         '''connect IP [port=80]'''
-        paramList = list(filter(None,par.split(' ')))
+
         if (len(paramList) > 2 or len(paramList)==0):
             print('Require 1 or 2 parameters')
         else:
@@ -308,12 +349,24 @@ class clientShell(shell):
             print("STATUS: connect to machine: ", cwd.decode())
             self.prompt = 'FTScmd> '
 
+    @_checkInit
+    def do_rercieve(self):
+        '''press CTRL+D to stop receiving'''
+        print('Waiting for the command...')
+        while True:
+            command = self.socket.recv(self.BUFFER_SIZE).decode()
+            out,err = run_command(HLcmd().onecmd,command)
+            if (out): s.send(out.encode())
+            if (err): s.send(err.encode())
 
+## GCS
 class serverShell(shell):
     def __init__(self):
         super().__init__()
         self.intro = '####### Interactive Server Shell #######'
         self.prompt = 'cmd> '
+        self.doRemote = True
+        self.clientSocket = None
 
 
     def preloop(self):
@@ -323,32 +376,41 @@ class serverShell(shell):
     def do_connect(self,par):
         '''connect [port=80]'''
         #print('Type the port used to connect. Press ENTER to use default setting')
-        if (par.isdecimal()):
-            print('Connect by port ', int(par))
+        try:
             self.port = int(par)
-        else:  # default setting, port = 80
+            print('Connect by port ', int(par))
+        except:  # default setting, port = 80
             self.port = self._DEFAULTPORT()
             print('Use default setting: port ', self.port)
 
         try:
-            aa = '127.0.0.1'
+            #ip = '127.0.0.1'
             self.socket.bind(('', self.port))
             self.socket.listen(5)
 
         except socket.error as e:
-            print("Fail to bind", e)
+            print("Fail to bind", e,file=sys.stderr)
             return -1
 
         # recieve message from client
-        client_socket, client_address = self.socket.accept()
+        self.clientSocket, client_address = self.socket.accept()
         print(f"Bind to {client_address[0]}:{client_address[1]}")
 
         # if connect
-        cwd = client_socket.recv(1024).decode()
+        cwd = self.clientSocket.recv(1024).decode()
         print("STATUS: connect to machine: ", cwd)
-        client_socket.send(socket.gethostname().encode())
+        self.clientSocket.send(socket.gethostname().encode())
         self.prompt = 'FTScmd> '
 
+    @_checkInit
+    def sendCommand(self,par):
+        try:
+            self.clientSocket.send(par.encode())
+        except:
+            print('Error when sending command', par,file=sys.stderr)
+
+        output = selfclient.recv(self.BUFFER_SIZE).decode()
+        print(output)
 
 
 if __name__ == '__main__':
