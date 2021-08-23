@@ -74,7 +74,7 @@ class shell(Cmd):
     def _DEFAULTPORT(self):
         return 81
 
-    def do_exit(self):
+    def do_exit(self, par):
         '''exit the shell'''
         print("########### EXIT SHELL ###########")
         return True
@@ -103,45 +103,169 @@ class shell(Cmd):
         return out, err
 
 
+
     @parser()
     def do_FTSinit(self,*paramList):
-        '''FTSinit IP username password'''
+        '''Command: FTSsettings stagename velocity acceleration  
+        
+        Stagename can be PL (pointing linear), PR (pointing rotary), or ML (moving linear)
+        Velocity must be between 1 and 200 (1 and 20 for PR)
+        Acceleration must be between 1 and 600 (1 and 80 for PR)
+        PR and PL are moved with FTSconfig, and ML is moved with FTSscan
+        '''
+
+        if(self.fts is None):
+            print('*****FTS not yet initialized!')
+            return 
+
+        if (len(paramList)!=3):
+            print('*****Require 3 parameters')
+            print('*****FTSsettings stagename velocity acceleration')
+            return 
+
+        MAX_VEL = AlicptFTS.MAX_VEL
+        MAX_ACC = AlicptFTS.MAX_ACCEL
+
+        min_accel = AlicptFTS.MIN_ACCEL
+        min_vel = AlicptFTS.MIN_VEL
+
+        if(paramList[0] == 'PL'):
+            stagename = 'PointingLinear'
+            
+        elif(paramList[0] == 'PR'):
+            MAX_VEL = AlicptFTS.MAX_R_VEL
+            MAX_ACC = AlicptFTS.MAX_R_ACCEL
+            stagename = 'PointingRotary' 
+        
+        elif(paramList[0] == 'ML'):
+            stagename = 'MovingLinear'
+        
+        else:
+            print('*****Requires stagename to be either PL, PR, or ML ' +
+                '(pointing linear, pointing rotary, or moving linear)')
+            return 
+
+        try:
+            velocity = float(paramList[1])
+            acceleration = float(paramList[2])
+        except ValueError:
+            print('*****Velocity and acceleration must be floats')
+            return
+
+        if (velocity < min_vel or velocity > MAX_VEL):
+            print('*****Velocity not in allowed range')
+            return 
+
+        if (acceleration < min_accel or acceleration > MAX_ACC):
+            print('*****Acceleration not in allowed range')
+            return 
+
+
+        self.fts.set_motion_params(stagename, [velocity, acceleration])
+
+    @parser()
+    def do_FTSinit(self,*paramList):
+        '''Command: FTSinit IP username password
+
+        This is required to initialize the NewportXPS machine before anything else is run.
+        '''
+
         if (not self.fts): self.fts = AlicptFTS()
 
         #paramList = list(filter(None,par.split(' ')))
         if (len(paramList)!=3):
-            print('Require 3 parameters')
-            print('FTSinit IP username password')
+            print('*****Require 3 parameters')
+            print('*****FTSinit IP username password')
         else:
             self.fts.initialize(paramList[0],paramList[1],paramList[2])
             print('Status: Finish FTS initialization')
 
+
     @parser()
     def do_FTSconfig(self,*paramList):
-        '''FTSconfig pos angle'''
+        '''Command: FTSconfig pos angle
 
-        #paramList = list(filter(None, par.split(' ')))
+        Position is between 0 and 500. Moves the PL (pointing linear) to desired location.
+        Angle is in degrees. No range limit. Rotates the PR (pointing rotary) to desired angle.
+        '''
+        if(self.fts is None):
+            print('*****FTS not yet initialized!')
+            return 
+ 
         if (len(paramList) != 2):
-            print('Require 2 parameters')
-            print('FTSconfig pos angle ')
-        else:
-            self.fts.configure(paramList[0],paramList[1])
+            print('*****Require 2 parameters')
+            print('*****FTSconfig pos angle ')
+            return 
+
+        min_pos = AlicptFTS.MIN_POS
+        max_pos = AlicptFTS.MAX_POS
+        try:
+            pos = float(paramList[0])
+        except ValueError:
+            print('*****Position must be a float')
+            return 
+        if(pos < min_pos or pos > max_pos):
+            print('*****Position not within range')
+            return 
+        
+        try:
+            angle = float(paramList[1])
+        except ValueError:
+            print('*****Angle must be a float')
+
+        self.fts.configure(pos, angle)
+
 
     def do_FTSstatus(self,par):
         '''Check the status of XPS'''
+        if(self.fts is None):
+            print('*****FTS not yet initialized!')
+            return 
         self.fts.status()
 
     @parser()
     def do_FTSscan(self,*paramList):
+        '''Command: FTSscan n_repeat scan_range_min scan_range_max filename(optional)
+
+        n_repeat is number of times to repeat the scan
+        scan_range_min and _max must be between 0 and 500
+        Scanning velocity can be changed in FTSsettings, where the stagename is ML (moving linear)
+        If the filename is specified, the scanning saves the stage positions into the file. Otherwise, the
+            information is saved in scan_range_[min]_[max]__configure_[pos]_[angle].dat
         '''
-        Params: 
-            repeat -- number of times to repeat
-            scan_range -- 
-            TODO add parameters
-        '''
-        #paramList = list(filter(None, par.split(' ')))
-        scan_range = (paramList[0], paramList[1])
-        self.fts.scan(scan_range=scan_range)
+        if(self.fts is None):
+            print('*****FTS not yet initialized!')
+            return 
+
+        if (len(paramList)<3 or len(paramList)>4):
+            print('*****Require 3 or 4 parameters')
+            print('*****FTSscan n_repeat scan_range_min scan_range_max filename(optional)')
+            return
+
+        min_scan = AlicptFTS.MIN_POS
+        max_scan = AlicptFTS.MAX_POS
+        try:
+            scan_range = (float(paramList[1]), float(paramList[2]))
+        except ValueError:
+            print('*****Scan range must be input as floats')
+            return 
+        if(scan_range[0] > scan_range[1]):
+            print('*****Min scan range must be smaller than max scan range')
+            return 
+        elif(scan_range[0] < min_scan or scan_range[1] > max_scan):
+            print('*****Scan range not within range')
+            return 
+        try:
+            n_repeat = int(paramList[0])
+        except ValueError:
+            print('*****n_repeat must be an integer')
+            return 
+
+        filename = None
+        if(len(paramList) == 4):
+            filename = paramList[3]
+        self.fts.scan(repeat=n_repeat, scan_range=scan_range, filename=filename)
+
         
     ## Remove unwant undoc commands
     do_EOF = do_exit
