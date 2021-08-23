@@ -13,6 +13,36 @@ from re import match
 import sys, os
 import socket
 from io import StringIO
+from functools import wraps
+
+def toNum(x):
+    try:
+        return int(x)
+    except ValueError:
+        try:
+            return float(x)
+        except:
+            return x
+
+## Syntactic sugar fucntion
+def parser(convertNum=True):
+    def parser_base(func):
+        @wraps(func)
+        def wrapper(self,param):
+            if (type(param)==str):
+                params = list(filter(None,param.split(' ')))
+            else:
+                params = param
+
+            if (convertNum):
+                try:
+                    params = tuple(map(toNum, params))
+                except:
+                    pass
+            return func(self,*params)
+
+        return wrapper
+    return parser_base
 
 class shell(Cmd):
 
@@ -20,7 +50,8 @@ class shell(Cmd):
         ## Cmd
         Cmd.__init__(self)
         self.prompt = 'FTScmd> '
-        self.intro = '####### Interactive Shell #######'
+        self.intro = '####### Interactive Shell #######\nType help or ? to list commands.\n'
+
 
         ## socket
         self.hostIP = None
@@ -33,12 +64,19 @@ class shell(Cmd):
         self.fts = None
         self.scan_params = []
 
+
+    @parser()
+    def do_testType(self,*params):
+        print('self ',self,params)
+        for i in params:
+            print(type(i))
+
     def _DEFAULTPORT(self):
         return 81
 
     def do_exit(self, par):
         '''exit the shell'''
-        print("EXIT")
+        print("########### EXIT SHELL ###########")
         return True
 
     def help_exit(self):
@@ -47,6 +85,8 @@ class shell(Cmd):
     def default(self, inp):
         if inp == 'q' or bool(match(inp,'qqq+')):
             return self.do_exit()
+        else:
+            print("Command Not Found:", inp.split(' ')[0], file=sys.stderr)
 
     def run_command(command):
         temp_out = StringIO()
@@ -62,10 +102,10 @@ class shell(Cmd):
         if (err): print(err, file=sys.stderr, end='')
         return out, err
 
-    do_EOF = do_exit
-    help_EOF = help_exit
 
-    def do_FTSsettings(self, par):
+
+    @parser()
+    def do_FTSinit(self,*paramList):
         '''Command: FTSsettings stagename velocity acceleration  
         
         Stagename can be PL (pointing linear), PR (pointing rotary), or ML (moving linear)
@@ -77,7 +117,7 @@ class shell(Cmd):
         if(self.fts is None):
             print('*****FTS not yet initialized!')
             return 
-        paramList = list(filter(None,par.split(' ')))
+
         if (len(paramList)!=3):
             print('*****Require 3 parameters')
             print('*****FTSsettings stagename velocity acceleration')
@@ -110,6 +150,7 @@ class shell(Cmd):
             acceleration = float(paramList[2])
         except ValueError:
             print('*****Velocity and acceleration must be floats')
+            return
 
         if (velocity < min_vel or velocity > MAX_VEL):
             print('*****Velocity not in allowed range')
@@ -122,14 +163,16 @@ class shell(Cmd):
 
         self.fts.set_motion_params(stagename, [velocity, acceleration])
 
-    def do_FTSinit(self,par):
+    @parser()
+    def do_FTSinit(self,*paramList):
         '''Command: FTSinit IP username password
 
         This is required to initialize the NewportXPS machine before anything else is run.
         '''
+
         if (not self.fts): self.fts = AlicptFTS()
 
-        paramList = list(filter(None,par.split(' ')))
+        #paramList = list(filter(None,par.split(' ')))
         if (len(paramList)!=3):
             print('*****Require 3 parameters')
             print('*****FTSinit IP username password')
@@ -137,7 +180,9 @@ class shell(Cmd):
             self.fts.initialize(paramList[0],paramList[1],paramList[2])
             print('Status: Finish FTS initialization')
 
-    def do_FTSconfig(self,par):
+
+    @parser()
+    def do_FTSconfig(self,*paramList):
         '''Command: FTSconfig pos angle
 
         Position is between 0 and 500. Moves the PL (pointing linear) to desired location.
@@ -146,7 +191,7 @@ class shell(Cmd):
         if(self.fts is None):
             print('*****FTS not yet initialized!')
             return 
-        paramList = list(filter(None, par.split(' ')))
+ 
         if (len(paramList) != 2):
             print('*****Require 2 parameters')
             print('*****FTSconfig pos angle ')
@@ -170,6 +215,7 @@ class shell(Cmd):
 
         self.fts.configure(pos, angle)
 
+
     def do_FTSstatus(self,par):
         '''Check the status of XPS'''
         if(self.fts is None):
@@ -177,7 +223,8 @@ class shell(Cmd):
             return 
         self.fts.status()
 
-    def do_FTSscan(self,par):
+    @parser()
+    def do_FTSscan(self,*paramList):
         '''Command: FTSscan n_repeat scan_range_min scan_range_max filename(optional)
 
         n_repeat is number of times to repeat the scan
@@ -189,8 +236,8 @@ class shell(Cmd):
         if(self.fts is None):
             print('*****FTS not yet initialized!')
             return 
-        paramList = list(filter(None, par.split(' ')))
-        if (len(paramList)!=3 and len(paramList)!=4):
+
+        if (len(paramList)<3 or len(paramList)>4):
             print('*****Require 3 or 4 parameters')
             print('*****FTSscan n_repeat scan_range_min scan_range_max filename(optional)')
             return
@@ -218,8 +265,14 @@ class shell(Cmd):
         if(len(paramList) == 4):
             filename = paramList[3]
         self.fts.scan(repeat=n_repeat, scan_range=scan_range, filename=filename)
-        
 
+        
+    ## Remove unwant undoc commands
+    do_EOF = do_exit
+    self.__hidden = ('do_EOF','do_testType')
+
+    def get_names(self):
+        return [n for n in dir(self.__class__) if n not in self.__hidden]
 
 
 
@@ -261,7 +314,6 @@ class serverShell(shell):
         super().__init__()
         self.intro = '####### Interactive Server Shell #######'
         self.prompt = 'cmd> '
-
 
 
     def preloop(self):
@@ -316,6 +368,8 @@ if __name__ == '__main__':
             if (int(mode)>=0 or int(mode)<=2):
                 #print(f'Open {modes[int(mode)-1]} Shell')
                 break
+        elif mode == 'q' or bool(match(mode, 'qqq+')):
+            exit()
 
     if (int(mode)==1): serverShell().cmdloop()
     elif (int(mode)==2): clientShell().cmdloop()
