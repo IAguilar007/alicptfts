@@ -1,17 +1,17 @@
 #!/usr/bin/env python
-
-import sys
-import os
+import sys, os
 import pickle
+import argparse
 sys.path.append(r'../alicptfts')
 sys.path.append(r'./alicptfts')
 #sys.path.append(r'../../alicpt_workspace/alicptfts')
 #sys.path.append(r'../alicpt_workspace/alicptfts')
 from alicptfts import AlicptFTS
+import msvcrt
+import threading
 
 from cmd import Cmd
 from re import match
-import sys, os
 import socket
 from io import StringIO
 from functools import wraps
@@ -44,6 +44,13 @@ def parser(convertNum=True):
 
         return wrapper
     return parser_base
+
+
+def print_err(*err, wrapper='*****',sep=' ', end='\n', file=sys.stderr, flush=False):
+    print(str(wrapper) + ' ', file=file,end='')
+    print(*err, file=file,end='',sep=sep)
+    print(' ' + str(wrapper), file=file, flush=flush,end=end)
+
 
 class shell(Cmd):
 
@@ -89,7 +96,7 @@ class shell(Cmd):
 
     ## use for test
     def do_print(self,par):
-        print('"print" command does nothing\narg: ',par)
+        print('"print" command is used for test\narg: ',par)
 
     def _DEFAULTPORT(self):
         return 81
@@ -104,7 +111,7 @@ class shell(Cmd):
 
     def default(self, inp):
         if inp == 'q' or bool(match(inp,'qqq+')):
-            return self.do_exit()
+            return self.do_exit(inp)
         else:
             print("Command Not Found:", inp.split(' ')[0], file=sys.stderr)
 
@@ -117,6 +124,7 @@ class shell(Cmd):
         temp_err = StringIO()
         sys.stdout = temp_out
         sys.stderr = temp_err
+
         try:
             func(line)
         except:
@@ -312,10 +320,6 @@ class shell(Cmd):
             filename = paramList[3]
         self.fts.scan(repeat=n_repeat, scan_range=scan_range, filename=filename)
 
-
-
-
-
     ## Remove unwant undoc commands
     do_EOF = do_exit
     __hidden = ('do_EOF','do_testType')
@@ -361,13 +365,18 @@ class clientShell(shell):
 
 
     def do_wait(self,par):
-        '''press CTRL+D to stop receiving'''
+        '''press CTRL+C to stop receiving'''
         print('Waiting for the command...')
-        while True:
-            command = self.socket.recv(self.BUFFER_SIZE).decode()
-            out,err = self.run_command(self.onecmd,command)
-            codeOut = pickle.dumps([out,err])  ## encode the output list
-            self.socket.send(codeOut)
+        print('press CTRL+C to stop receiving')
+        try:
+            while True:
+                command = self.socket.recv(self.BUFFER_SIZE).decode()
+                print('Received command: ', command)
+                out,err = self.run_command(self.onecmd,command)
+                codeOut = pickle.dumps([out,err])  ## encode the output list
+                self.socket.send(codeOut)
+        except KeyboardInterrupt:
+            print('Stop Receiving')
 
 
 ## GCS
@@ -421,34 +430,38 @@ class serverShell(shell):
             print('Error when sending command', par,file=sys.stderr)
 
         codeOut = self.clientSocket.recv(self.BUFFER_SIZE)
-        print(codeOut)
         out, err = pickle.loads(codeOut)  ## decode output list
         if (out): print(out,end='')
         if (err): print(err,file=sys.stderr,end='')
 
 
 if __name__ == '__main__':
-    # header
-    # modes = ['Server','Client']
-    print("Choose Server or Client Mode")
-    print("Press 1 to Server and 2 to Client")
-    print("Press ENTER to run locally")
 
-    while True:
-        #mode = input("Mode: ")
-        mode = '1'
-        if (mode.isspace() or not mode):
-            mode = '0'
-            break
-        elif (mode.isdecimal()):
-            if (int(mode)>=0 or int(mode)<=2):
-                #print(f'Open {modes[int(mode)-1]} Shell')
+    pars = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    pars.add_argument("-m", "--mode", nargs='?', type=int, choices=[0, 1, 2],
+                      help='Choose modes\nMode 0: local run\nMode 1: server\nMode 2: client')
+    args = pars.parse_args()
+    mode = args.mode
+    if (not mode):
+        print("Choose Server or Client Mode:")
+        print("Press 1 to Server and 2 to Client")
+        print("Press ENTER to run locally")
+        print("Press q to exit")
+
+        while True:
+            mode = input("Mode: ")
+            #mode = '2'
+            if (not mode or mode.isspace() ):
+                mode = '0'
                 break
-        elif mode == 'q' or bool(match(mode, 'qqq+')):
-            exit()
+            elif (mode.isdecimal()):
+                if (int(mode)>=0 or int(mode)<=2):
+                    #print(f'Open {modes[int(mode)-1]} Shell')
+                    break
+            elif mode == 'q' or bool(match(mode, 'qqq+')):
+                exit()
 
     if (int(mode)==1): serverShell().cmdloop()
     elif (int(mode)==2): clientShell().cmdloop()
     else: shell().cmdloop()
-
 
