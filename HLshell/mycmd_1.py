@@ -2,19 +2,23 @@
 import sys, os
 import pickle
 import argparse
+import msvcrt
+import threading
+import socket
+import msvcrt
+import threading
+
 sys.path.append(r'../alicptfts')
 sys.path.append(r'./alicptfts')
 #sys.path.append(r'../../alicpt_workspace/alicptfts')
 #sys.path.append(r'../alicpt_workspace/alicptfts')
-from alicptfts import AlicptFTS
-import msvcrt
-import threading
+
+from io import StringIO
+from functools import wraps
 
 from cmd import Cmd
 from re import match
-import socket
-from io import StringIO
-from functools import wraps
+from alicptfts import AlicptFTS, FTSState
 
 def toNum(x):
     try:
@@ -53,7 +57,8 @@ def print_err(*err, wrapper='*****',sep=' ', end='\n', file=sys.stderr, flush=Fa
 
 
 class shell(Cmd):
-
+    DEFAULT_TIMEOUT = 30
+    BUFFER_SIZE = 1024 * 128
     def __init__(self):
         ## Cmd
         Cmd.__init__(self)
@@ -65,8 +70,7 @@ class shell(Cmd):
         self.port = self._DEFAULTPORT()  # Arbitrary non-privileged port
         self.socket = socket.socket()
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        #self.socket.settimeout(60)
-        self.BUFFER_SIZE = 1024 * 128
+        self.socket.settimeout(shell.DEFAULT_TIMEOUT)
 
         ## fts
         self.fts = None
@@ -75,16 +79,20 @@ class shell(Cmd):
 
     def _checkInit(func):
         @wraps(func)
-        def wrapper(*params,**kargs):
+        def wrapper(self, *params, **kargs):
             try:
-                if (params[0].fts is None):  ## params[0] = self
-                    print('***** FTS is not yet initialized!',file=sys.stderr)
+                if (self.fts is None):
+                    print_error('FTS is not yet initialized!')
+                    print_error('Did you mean to send the command instead?')
+                    return lambda *params, **kargs: None
+                elif (self.fts.state == FTSState.NOTINIT):
+                    print_err('FTS initialization failed!')
                     return lambda *params, **kargs: None
                 else:  ## Connect
-                    return func(*params,**kargs)
-            except:
+                    return func(self,*params,**kargs)
+            except Exception as e:
                 ''' len(params)==0 '''
-                raise Exception('Syntax error: cannot check Initialization')
+                raise Exception('No parameters entered',e)
 
         return wrapper
 
@@ -96,6 +104,7 @@ class shell(Cmd):
 
     ## use for test
     def do_print(self,par):
+        '''print any argument you want'''
         print('"print" command is used for test\narg: ',par)
 
     def _DEFAULTPORT(self):
@@ -113,7 +122,7 @@ class shell(Cmd):
         if inp == 'q' or bool(match(inp,'qqq+')):
             return self.do_exit(inp)
         else:
-            print("Command Not Found:", inp.split(' ')[0], file=sys.stderr)
+            print_err("Command Not Found:", inp.split(' ')[0])
 
     def run_cmdbase(self,func,line):
         re = self.onecmd(line)
@@ -128,7 +137,7 @@ class shell(Cmd):
         try:
             func(line)
         except:
-            print('Error: ' + func.__name__ + '('+line+')',file=sys.stderr)
+            print_err('Error: ' + func.__name__ + '('+line+')')
 
         sys.stdout = sys.__stdout__
         sys.stderr = sys.__stderr__
@@ -149,16 +158,10 @@ class shell(Cmd):
         PR and PL are moved with FTSconfig, and ML is moved with FTSscan
         '''
 
-        '''
-        if(self.fts is None):
-            print('*****FTS not yet initialized!')
-            return 
-        '''
-
         if (len(paramList)!=3):
-            print('*****Require 3 parameters')
-            print('*****FTSsettings stagename velocity acceleration')
-            return 
+            print_err('Require 3 parameters')
+            print_err('FTSsettings stagename velocity acceleration')
+            raise
 
         MAX_VEL = AlicptFTS.MAX_VEL
         MAX_ACC = AlicptFTS.MAX_ACCEL
@@ -178,24 +181,24 @@ class shell(Cmd):
             stagename = 'MovingLinear'
         
         else:
-            print('*****Requires stagename to be either PL, PR, or ML ' +
+            print_err('Requires stagename to be either PL, PR, or ML ' +
                 '(pointing linear, pointing rotary, or moving linear)')
-            return 
+            raise
 
         try:
             velocity = float(paramList[1])
             acceleration = float(paramList[2])
         except ValueError:
-            print('*****Velocity and acceleration must be floats')
-            return
+            print_err('Velocity and acceleration must be float')
+            raise
 
         if (velocity < min_vel or velocity > MAX_VEL):
-            print('*****Velocity not in allowed range')
-            return 
+            print_err('Velocity is not in allowed range')
+            raise
 
         if (acceleration < min_accel or acceleration > MAX_ACC):
-            print('*****Acceleration not in allowed range')
-            return 
+            print_err('Acceleration is not in allowed range')
+            raise
 
         self.fts.set_motion_params(stagename, [velocity, acceleration])
 
@@ -209,14 +212,22 @@ class shell(Cmd):
         if (not self.fts): self.fts = AlicptFTS()
 
         if (len(paramList)!=3):
-            print('*****Require 3 parameters')
-            print('*****FTSinit IP username password')
+            print_err('Require 3 parameters')
+            print_err('FTSinit IP username password')
+            raise
+
         else:
             try:
                 self.fts.initialize(paramList[0],paramList[1],paramList[2])
                 print('Status: Finish FTS initialization')
-            except typeError:
-                print('IP(str) username(str) password(str)')
+            except TypeError:
+                print_err('FTSinit IP(str) username(str) password(str)')
+                raise
+
+            except:
+                print_error('Connection failed')
+                print_error('Did you mean to send the command instead?')
+                raise
 
 
 
@@ -238,37 +249,32 @@ class shell(Cmd):
 
  
         if (len(paramList) != 2):
-            print('*****Require 2 parameters')
-            print('*****FTSconfig pos angle ')
-            return 
+            print_err('Require 2 parameters')
+            print_err('FTSconfig pos angle ')
+            raise
 
         min_pos = AlicptFTS.MIN_POS
         max_pos = AlicptFTS.MAX_POS
         try:
             pos = float(paramList[0])
         except ValueError:
-            print('*****Position must be a float')
-            return 
+            print_err('Position must be a float')
+            raise
         if(pos < min_pos or pos > max_pos):
-            print('*****Position not within range')
-            return 
+            print_err('Position is not in tne range')
+            raise
         
         try:
             angle = float(paramList[1])
-        except ValueError:
-            print('*****Angle must be a float')
+        except ValueError as e:
+            print_err('Angle must be a float')
+            raise
 
         self.fts.configure(pos, angle)
 
     @_checkInit
     def do_FTSstatus(self,par):
         '''Check the status of XPS'''
-        '''
-        if(self.fts is None):
-            print('*****FTS not yet initialized!')
-            return
-        '''
-
         self.fts.status()
 
     @parser()
@@ -283,16 +289,10 @@ class shell(Cmd):
             information is saved in scan_range_[min]_[max]__configure_[pos]_[angle].dat
         '''
 
-        '''
-        if(self.fts is None):
-            print('*****FTS not yet initialized!')
-            return 
-        '''
-
         if (len(paramList)<3 or len(paramList)>4):
-            print('*****Require 3 or 4 parameters')
-            print('*****FTSscan n_repeat scan_range_min scan_range_max filename(optional)')
-            return
+            print_err('Require 3 or 4 parameters')
+            print_err('FTSscan n_repeat scan_range_min scan_range_max filename(optional)')
+            raise
 
         min_scan = AlicptFTS.MIN_POS
         max_scan = AlicptFTS.MAX_POS
@@ -300,20 +300,20 @@ class shell(Cmd):
             scan_range = (float(paramList[1]), float(paramList[2]))
         except ValueError:
             print('*****Scan range must be input as floats')
-            return
+            raise
 
         if(scan_range[0] > scan_range[1]):
             print('*****Min scan range must be smaller than max scan range')
-            return 
-        elif(scan_range[0] < min_scan or scan_range[1] > max_scan):
+            raise
+        if(scan_range[0] < min_scan or scan_range[1] > max_scan):
             print('*****Scan range not within range')
-            return
+            raise
 
         try:
             n_repeat = int(paramList[0])
         except ValueError:
-            print('*****n_repeat must be an integer')
-            return 
+            print_err('n_repeat must be an integer')
+            raise
 
         filename = None
         if(len(paramList) == 4):
@@ -330,6 +330,7 @@ class shell(Cmd):
 
 ## Laptop
 class clientShell(shell):
+    DEFAULT_TIMEOUT = 6
     def __init__(self):
         super().__init__()
         self.intro = '####### Interactive Client Shell #######'
@@ -345,23 +346,25 @@ class clientShell(shell):
         '''connect IP [port=81]'''
 
         if (len(paramList) > 2 or len(paramList)==0):
-            print('Require 1 or 2 parameters')
-        else:
-            self.hostIP = paramList[0]
-            if (len(paramList)==2 and paramList[1]>0):
-                self.port = paramList[1]
-            else:
-                self.port = self._DEFAULTPORT()
-                if (len(paramList)==2): print('Second parameters (port) should be a number.\nUse default setting, port ', self._DEFAULTPORT())
-            try:
-                self.socket.connect((self.hostIP,self.port))
-            except socket.error as msg:
-                print(msg)
+            raise TypeError('Require 1 or 2 parameters')
 
-            self.socket.sendall(socket.gethostname().encode())
-            cwd = self.socket.recv(1024)
-            print("STATUS: connect to machine: ", cwd.decode())
-            self.prompt = 'FTScmd> '
+        self.hostIP = paramList[0]
+        if (len(paramList)==2 and paramList[1]>0):
+            self.port = paramList[1]
+        else:
+            self.port = self._DEFAULTPORT()
+            if (len(paramList)==2): print('Second parameters (port) should be a number.\nUse default setting, port ', self._DEFAULTPORT())
+
+        try:
+            self.socket.connect((self.hostIP,self.port))
+        except socket.error as msg:
+            print(msg)
+            raise
+
+        self.socket.sendall(socket.gethostname().encode())
+        cwd = self.socket.recv(1024)
+        print("STATUS: connect to machine: ", cwd.decode())
+        self.prompt = 'FTScmd> '
 
 
     def do_wait(self,par):
@@ -387,6 +390,7 @@ class serverShell(shell):
         self.prompt = 'cmd> '
         self.doRemote = True
         self.clientSocket = None
+        self.waiting_for_cmd = False
 
 
     def preloop(self):
@@ -394,7 +398,7 @@ class serverShell(shell):
         #print('Open Server Shell')
 
     def do_connect(self,par):
-        '''connect [port=81]'''
+        '''connect [port=81 timeout=30 seconds]'''
         #print('Type the port used to connect. Press ENTER to use default setting')
         try:
             self.port = int(par)
@@ -409,8 +413,8 @@ class serverShell(shell):
             self.socket.listen(5)
 
         except socket.error as e:
-            print("Fail to bind", e,file=sys.stderr)
-            return -1
+            print_err("Fail to bind", e)
+            raise
 
         # recieve message from client
         self.clientSocket, client_address = self.socket.accept()
