@@ -2,10 +2,10 @@
 import sys, os
 import pickle
 import argparse
-import msvcrt
+
 import threading
 import socket
-import msvcrt
+#import msvcrt
 import threading
 
 sys.path.append(r'../alicptfts')
@@ -161,7 +161,7 @@ class shell(Cmd):
         if (len(paramList)!=3):
             print_err('Require 3 parameters')
             print_err('FTSsettings stagename velocity acceleration')
-            raise
+            return
 
         MAX_VEL = AlicptFTS.MAX_VEL
         MAX_ACC = AlicptFTS.MAX_ACCEL
@@ -183,22 +183,22 @@ class shell(Cmd):
         else:
             print_err('Requires stagename to be either PL, PR, or ML ' +
                 '(pointing linear, pointing rotary, or moving linear)')
-            raise
+            return
 
         try:
             velocity = float(paramList[1])
             acceleration = float(paramList[2])
         except ValueError:
             print_err('Velocity and acceleration must be float')
-            raise
+            return
 
         if (velocity < min_vel or velocity > MAX_VEL):
             print_err('Velocity is not in allowed range')
-            raise
+            return
 
         if (acceleration < min_accel or acceleration > MAX_ACC):
             print_err('Acceleration is not in allowed range')
-            raise
+            return
 
         self.fts.set_motion_params(stagename, [velocity, acceleration])
 
@@ -214,20 +214,21 @@ class shell(Cmd):
         if (len(paramList)!=3):
             print_err('Require 3 parameters')
             print_err('FTSinit IP username password')
-            raise
+            return
 
-        else:
-            try:
-                self.fts.initialize(paramList[0],paramList[1],paramList[2])
-                print('Status: Finish FTS initialization')
-            except TypeError:
-                print_err('FTSinit IP(str) username(str) password(str)')
-                raise
 
-            except:
-                print_error('Connection failed')
-                print_error('Did you mean to send the command instead?')
-                raise
+        try:
+            self.fts.initialize(paramList[0],paramList[1],paramList[2])
+            print('Status: Finish FTS initialization')
+
+        except TypeError:
+            print_err('FTSinit IP(str) username(str) password(str)')
+            return
+
+        except:
+            print_error('Connection failed')
+            print_error('Did you mean to send the command instead?')
+            return
 
 
 
@@ -251,7 +252,7 @@ class shell(Cmd):
         if (len(paramList) != 2):
             print_err('Require 2 parameters')
             print_err('FTSconfig pos angle ')
-            raise
+            return
 
         min_pos = AlicptFTS.MIN_POS
         max_pos = AlicptFTS.MAX_POS
@@ -259,16 +260,16 @@ class shell(Cmd):
             pos = float(paramList[0])
         except ValueError:
             print_err('Position must be a float')
-            raise
+            return
         if(pos < min_pos or pos > max_pos):
             print_err('Position is not in tne range')
-            raise
+            return
         
         try:
             angle = float(paramList[1])
         except ValueError as e:
             print_err('Angle must be a float')
-            raise
+            return
 
         self.fts.configure(pos, angle)
 
@@ -292,22 +293,24 @@ class shell(Cmd):
         if (len(paramList)<3 or len(paramList)>4):
             print_err('Require 3 or 4 parameters')
             print_err('FTSscan n_repeat scan_range_min scan_range_max filename(optional)')
-            raise
+            return
 
         min_scan = AlicptFTS.MIN_POS
         max_scan = AlicptFTS.MAX_POS
         try:
             scan_range = (float(paramList[1]), float(paramList[2]))
         except ValueError:
-            print('*****Scan range must be input as floats')
-            raise
+            print_err('Scan range must be input as floats')
+            return
 
         if(scan_range[0] > scan_range[1]):
-            print('*****Min scan range must be smaller than max scan range')
-            raise
+            scan_range[0], scan_range[1] = scan_range[1], scan_range[0]
+            #print('*****Min scan range must be smaller than max scan range')
+
+
         if(scan_range[0] < min_scan or scan_range[1] > max_scan):
-            print('*****Scan range not within range')
-            raise
+            print_err('Scan range not within range')
+            return
 
         try:
             n_repeat = int(paramList[0])
@@ -346,7 +349,8 @@ class clientShell(shell):
         '''connect IP [port=81]'''
 
         if (len(paramList) > 2 or len(paramList)==0):
-            raise TypeError('Require 1 or 2 parameters')
+            print_err('Require 1 or 2 parameters')
+            return
 
         self.hostIP = paramList[0]
         if (len(paramList)==2 and paramList[1]>0):
@@ -358,8 +362,8 @@ class clientShell(shell):
         try:
             self.socket.connect((self.hostIP,self.port))
         except socket.error as msg:
-            print(msg)
-            raise
+            print(msg,file=sys.stderr)
+            return
 
         self.socket.sendall(socket.gethostname().encode())
         cwd = self.socket.recv(1024)
@@ -413,8 +417,8 @@ class serverShell(shell):
             self.socket.listen(5)
 
         except socket.error as e:
-            print_err("Fail to bind", e)
-            raise
+            print("Fail to bind", e,file=sys.stderr)
+            return
 
         # recieve message from client
         self.clientSocket, client_address = self.socket.accept()
@@ -446,7 +450,7 @@ if __name__ == '__main__':
                       help='Choose modes\nMode 0: local run\nMode 1: server\nMode 2: client')
     args = pars.parse_args()
     mode = args.mode
-    if (not mode):
+    if (mode is None):
         print("Choose Server or Client Mode:")
         print("Press 1 to Server and 2 to Client")
         print("Press ENTER to run locally")
