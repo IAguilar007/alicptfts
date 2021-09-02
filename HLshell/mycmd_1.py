@@ -19,6 +19,7 @@ import threading
 from alicptfts import AlicptFTS, FTSState
 
 
+
 def toNum(x):
     try:
         return int(x)
@@ -54,11 +55,15 @@ def print_err(*err, wrapper='*****',sep=' ', end='\n', file=sys.stderr, flush=Fa
     print(*err, file=file,end='',sep=sep)
     print(' ' + str(wrapper), file=file, flush=flush,end=end)
 
+def print_all(out,err):
+    if (out): print(out, end='')
+    if (err): print(err, file=sys.stderr, end='')
 
 class shell(Cmd):
     DEFAULT_TIMEOUT = 5
     BUFFER_SIZE = 1024 * 128
-    def __init__(self):
+    DEFAULTPORT = 8001 # Arbitrary non-privileged port
+    def __init__(self,debug_mode=False):
         ## Cmd
         Cmd.__init__(self)
         self.prompt = 'FTScmd> '
@@ -66,7 +71,7 @@ class shell(Cmd):
 
         ## socket
         self.hostIP = None
-        self.port = self._DEFAULTPORT()  # Arbitrary non-privileged port
+        self.port = shell.DEFAULTPORT
         self.socket = socket.socket()
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.settimeout(shell.DEFAULT_TIMEOUT)
@@ -75,6 +80,7 @@ class shell(Cmd):
         self.fts = None
         self.scan_params = []
         self.doRemote = False
+        self.debug_mode = debug_mode
 
     def _checkInit(func):
         @wraps(func)
@@ -109,7 +115,7 @@ class shell(Cmd):
         print('"print" command is used for test\narg: ',par)
 
     def _DEFAULTPORT(self):
-        return 81
+        return shell.DEFAULTPORT
 
     def do_exit(self, par):
         '''exit the shell'''
@@ -118,6 +124,19 @@ class shell(Cmd):
 
     def help_exit(self):
         print('type q or qqq to leave')
+
+    @parser()
+    def do_debug(self,*paramList):
+        if (len(paramList)>0):
+            try:
+                debug_mode = bool(paramList[0])
+            except:
+                debug_mode = True
+        else:
+            debug_mode = True
+
+        self.debug_mode = debug_mode
+        print('Set debug mode: ',bool(self.debug_mode))
 
     def default(self, inp):
         if inp == 'q' or bool(match(inp,'qqq+')):
@@ -143,8 +162,7 @@ class shell(Cmd):
         sys.stderr = sys.__stderr__
         out = temp_out.getvalue()
         err = temp_err.getvalue()
-        if (out): print(out, end='')
-        if (err): print(err, file=sys.stderr, end='')
+        print_all(out,err)
         return out, err
 
     @parser()
@@ -332,8 +350,8 @@ class shell(Cmd):
 ## Laptop
 class clientShell(shell):
     DEFAULT_TIMEOUT = 6
-    def __init__(self, ip):
-        super().__init__()
+    def __init__(self, ip,debug_mode=False):
+        super().__init__(debug_mode)
         self.intro = '####### Interactive Client Shell #######'
         self.prompt = 'cmd> '
         self.doRemote = True
@@ -341,7 +359,7 @@ class clientShell(shell):
         self.is_connected = False 
         self.is_connecting = False
         self.waiting_for_cmd = False
-        self.debug_mode = False
+
 
     def preloop(self):
         '''Automatically connects and waits for commands'''
@@ -397,9 +415,9 @@ class clientShell(shell):
         if (len(paramList)==2 and paramList[1]>0):
             self.port = paramList[1]
         else:
-            self.port = self._DEFAULTPORT()
+            self.port = shell.DEFAULTPORT
             if (len(paramList)==2): 
-                print_err('Second parameters (port) should be a number.\nUse default setting, port ', self._DEFAULTPORT())
+                print_err('Second parameters (port) should be a number.\nUse default setting, port ', self.port)
         
         connect_timeout = clientShell.DEFAULT_TIMEOUT
         self.socket.settimeout(connect_timeout)
@@ -503,8 +521,8 @@ class clientShell(shell):
 
 ## GCS
 class serverShell(shell):
-    def __init__(self):
-        super().__init__()
+    def __init__(self,debug_mode=False):
+        super().__init__(debug_mode)
         self.intro = '####### Interactive Server Shell #######'
         self.prompt = 'cmd> '
         self.doRemote = True
@@ -524,7 +542,7 @@ class serverShell(shell):
                 self.port = int(par[0])
                 print('Connect by port ', self.port)
             except Exception as e:  # default setting, port = 81
-                self.port = self._DEFAULTPORT()
+                self.port = shell.DEFAULTPORT
                 print_err(e)
                 print_err('Using default setting: port ', self.port)
         if(len(par) == 2):
@@ -589,8 +607,7 @@ class serverShell(shell):
                 return 
     
             out, err = pickle.loads(cmd_received)
-            if (out): print(out, end='')
-            if (err): print(err, file=sys.stderr, end='')
+            print_all(out,err)
             
             print('Client is running command')
             self.clientSocket.settimeout(None)
@@ -599,8 +616,7 @@ class serverShell(shell):
 
 
             out, err = pickle.loads(codeOut)  ## decode output list
-            if (out): print(out)
-            if (err): print(err)
+            print_all(out, err)
             print('Command Complete')
 
 
@@ -660,9 +676,9 @@ if __name__ == '__main__':
 
 
     if (int(mode)==1): 
-        serverShell().cmdloop()
+        serverShell(debug_mode).cmdloop()
     elif (int(mode)==2): 
-        clientShell(serverIP).cmdloop()
+        clientShell(serverIP,debug_mode).cmdloop()
     else: 
-        shell().cmdloop()
+        shell(debug_mode).cmdloop()
 
