@@ -6,8 +6,7 @@ import argparse
 import ntplib
 import time
 import enum
-import posixpath
-from math import sqrt
+import math
 
 #import numpy as np
 
@@ -171,7 +170,7 @@ class AlicptFTS:
         err, ret = fts.newportxps._xps.EventExtendedConfigurationTriggerSet(socket, [event_name], ['0'],['0'],['0'],['0'])
         fts.newportxps.check_error(err, msg='EventConfigTrigger')
         if verbose:
-            print( " EventExtended Trigger Set ", ret)
+            print( "    EventExtended Trigger Set ", ret)
         return 
 
     def configure_gathering_time(self, run_time, collection_resolution, socket=0, verbose=False):
@@ -233,29 +232,33 @@ class AlicptFTS:
 
     def calculate_time_one_pass(self, max_range, max_velocity, accel):
         '''
-        calculates the number of seconds it would take to move from
+        calculates the number of seconds it would take to move from 
         one end of range to the other end of range
+        TODO proper documentation
         '''
-        vf = sqrt(accel*max_range)
+        vf = float(math.sqrt(accel*max_range))
         if(vf < max_velocity):
-            max_time_one_pass = sqrt(max_range * 4 / accel)
-        else:
+            max_time_one_pass = float(math.sqrt(max_range * 4. / accel))
+        else: 
             max_time_one_pass = max_range / max_velocity + max_velocity / accel
+        
         return max_time_one_pass
+
 
     def calculate_gather_time(self, repeat, scan_range, velocity, accel, stage='Group1.Pos'):
         '''
         calculates the number of seconds it would take to perform a gather run
+        TODO proper documentation
         '''
         velocity, accel = self.newportxps.set_velocity(stage, velocity, accel)
-
+        
         max_range = AlicptFTS.MAX_POS - AlicptFTS.MIN_POS
         ## TODO explain these calculations
-
+        
         max_time_one_pass = self.calculate_time_one_pass(max_range, velocity, accel)
 
         s_range = scan_range[1] - scan_range[0]
-        if (s_range < 0):
+        if(s_range < 0):
             s_range = s_range * -1
 
         time_one_pass = self.calculate_time_one_pass(s_range, velocity, accel)
@@ -299,12 +302,10 @@ class AlicptFTS:
             Number of full back-and-forth scans (default is 15).
         """
         self.check_state('scan')
-
         if(scan_params is None):
             ## TODO put function in class
             scan_params = generate_scanparams()
         if(scan_range is None):
-            ## TODO acquire this from newportxps instead of hardcode
             min_range = AlicptFTS.MIN_POS
             max_range = AlicptFTS.MAX_POS - AlicptFTS.MIN_POS
             scan_range = [min_range, max_range]
@@ -312,11 +313,15 @@ class AlicptFTS:
             self.configure(configure[0], configure[1])
         else:
             configure = self.config
-
+        
         gather_resolution = 0.001
-        event_ID, trigger_start_group = self.gather_data_setup(gather_time, gather_resolution, scan_params)
-        time_start, time_end = self.perform_movement(trigger_start_group, scan_range, repeat, velocity=velocity, accel=accel)
 
+        gather_time = self.calculate_gather_time(repeat, scan_range, velocity, accel)
+        event_ID, trigger_start_group = self.gather_data_setup(gather_time, gather_resolution, scan_params)
+        
+        
+        time_start, time_end = self.perform_movement(trigger_start_group, scan_range, repeat, velocity=velocity, accel=accel)
+       
         if(filename is None):
             filename = 'scan_range_%d_%d__configure_%d_%d.dat' % (scan_range[0], scan_range[1], configure[0], configure[1])
 
@@ -582,18 +587,17 @@ class AlicptFTS:
         
         ret, msg = self.newportxps._xps.GatheringDataMultipleLinesGet(socket, 0, 1)
         num_entries = len(msg.split(';'))
-        print(num_entries)
+        print('Number of columns saved:' + str(num_entries))
         max_lines = max_entries / num_entries
         nchunks = int(total_lines/max_lines)+1
         num_lines = total_lines 
         success = False
         print('Acquiring gather file:')
         while(not success):
-            print(' Current number of chunks ' + str(nchunks))
-            print('Current number of chunks ' + str(nchunks))
+            print('    Current number of chunks ' + str(nchunks))
             ret, _ = self.newportxps._xps.GatheringDataMultipleLinesGet(socket, 0, int(num_lines))
-            print('Current number of lines ' + str(num_lines))
-            print(' Current number of lines ' + str(num_lines))
+            print('    Current number of lines ' + str(num_lines))
+            # Did not successfully return all lines
             if(ret < 0):
                 nchunks *= 1.5
                 num_lines = total_lines/nchunks 
@@ -642,7 +646,6 @@ class AlicptFTS:
             start = lines_per_chunk * nchunks
             ret, buffer = self.newportxps._xps.GatheringDataMultipleLinesGet(socket, start, remaining_lines)
             f.write(buffer)
-
         print('Successfully saved gather file at: ' + str(filename))
         return 
     
