@@ -16,7 +16,7 @@ import argparse
 import msvcrt
 import threading
 
-from alicptfts import AlicptFTS
+from alicptfts import AlicptFTS, FTSState
 
 
 def toNum(x):
@@ -83,7 +83,10 @@ class shell(Cmd):
                 if (self.fts is None):
                     print_err('FTS is not yet initialized!')
                     print_err('Did you mean to send the command instead?')
-                    return #lambda *params, **kargs: None
+                    return
+                elif (self.fts.state == FTSState.NOTINIT):
+                    print_err('FTS initialization failed!')
+                    return
                 else:  ## Connect
                     return func(self,*params,**kargs)
             except Exception as e:
@@ -99,9 +102,6 @@ class shell(Cmd):
         for i in params:
             print(type(i))
 
-    # do nothing if command is empty
-    def emptyline(self):
-        pass 
 
     ## use for test
     def do_print(self,par):
@@ -117,7 +117,7 @@ class shell(Cmd):
         return True
 
     def help_exit(self):
-        print('type exit or q to leave')
+        print('type q or qqq to leave')
 
     def default(self, inp):
         if inp == 'q' or bool(match(inp,'qqq+')):
@@ -144,7 +144,7 @@ class shell(Cmd):
         out = temp_out.getvalue()
         err = temp_err.getvalue()
         if (out): print(out, end='')
-        if (err): print_err(err)
+        if (err): print(err, file=sys.stderr, end='')
         return out, err
 
     @parser()
@@ -319,8 +319,14 @@ class shell(Cmd):
     do_EOF = do_exit
     __hidden = ('do_EOF','do_testType')
 
-    def get_names(self): ## Don't change the name
+    ## Override function in Cmd module
+    def get_names(self):
         return [n for n in dir(self.__class__) if n not in self.__hidden]
+
+    ## Override function in Cmd module
+    # do nothing if command is empty
+    def emptyline(self):
+        pass
 
 
 ## Laptop
@@ -351,7 +357,7 @@ class clientShell(shell):
         Start automatically connecting and receiving commands from server'''
         self.debug_mode = False
         if(len(par) > 0):
-            self.server_ip = par
+            self.server_ip = par[0]
 
         # I probably should've switched preloop and start
         pressed_key = '_'
@@ -396,7 +402,6 @@ class clientShell(shell):
                 print_err('Second parameters (port) should be a number.\nUse default setting, port ', self._DEFAULTPORT())
         
         connect_timeout = clientShell.DEFAULT_TIMEOUT
-        self.socket = socket.socket()
         self.socket.settimeout(connect_timeout)
         print('Attempting to connect to ' + str(self.hostIP) + ':' + str(self.port))
         try:
@@ -533,8 +538,6 @@ class serverShell(shell):
 
         try:
             #ip = '127.0.0.1'
-            self.socket = socket.socket()
-            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket.settimeout(timeout)
             self.socket.bind(('', self.port))
             self.socket.listen(5)
@@ -560,9 +563,13 @@ class serverShell(shell):
 
     def do_send(self,par):
         '''send [any other command to the server]'''
+
+        '''
         if(len(par) < 1):
             print_err("No command sent")
             return 
+        '''
+
         print('Sending params: ' + str(par))
         self.clientSocket.settimeout(clientShell.DEFAULT_TIMEOUT)
         try:
@@ -582,18 +589,20 @@ class serverShell(shell):
                 return 
     
             out, err = pickle.loads(cmd_received)
-            if (out): print(out)
-            if (err): print(err)
+            if (out): print(out, end='')
+            if (err): print(err, file=sys.stderr, end='')
             
             print('Client is running command')
             self.clientSocket.settimeout(None)
             codeOut = self.clientSocket.recv(shell.BUFFER_SIZE) ## might be a long command
             self.clientSocket.settimeout(shell.DEFAULT_TIMEOUT)
 
+
             out, err = pickle.loads(codeOut)  ## decode output list
             if (out): print(out)
             if (err): print(err)
             print('Command Complete')
+
 
         except AttributeError as e:
             print_err('Error when sending command:' + str(par))
@@ -607,43 +616,53 @@ class serverShell(shell):
     def do_close(self, par):
         self.socket.close()
 
+        # looks like forgetting to delete
+        '''
         codeOut = self.socket.recv(self.BUFFER_SIZE)
         out, err = pickle.loads(codeOut)  ## decode output list
         if (out): print(out,end='')
         if (err): print(err,file=sys.stderr,end='')
-
+        '''
 
 if __name__ == '__main__':
 
     pars = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    pars.add_argument("-m", "--mode", nargs='?', type=int, choices=[0, 1, 2],
-                      help='Choose modes\nMode 0: local run\nMode 1: server\nMode 2: client')
-    pars.add_argument('-i', '--ip', default='127.0.0.1', help='IP of the server')
     args = pars.parse_args()
+    pars.add_argument("-m", "--mode", nargs='?', type=int, choices=[0, 1, 2],
+                      help='Choose modes\n0: local run\n1: server\n2: client')
+    pars.add_argument('--ip', required=False,nargs='?',type=str,help='IP of the Server')
+    pars.add_argument('-d','--debug',action='store_true',help='Enable debugging mode')
+
+    if (args.mode == 2 and args.ip is None):
+        pars.error("Server IP is required for client mode (-m 2, --mode 2)")
+
     mode = args.mode
+    debug_mode = args.debug
+    serverIP = args.ip
+
+    dict_mode = {0:'local',1:'server',2:'client'}
     if (mode is None):
         print("Choose Server or Client Mode:")
         print("Press 1 to Server and 2 to Client")
-        print("Press ENTER to run locally")
+        print("Press 0 to run locally")
         print("Press q to exit")
 
         while True:
             mode = input("Mode: ")
             #mode = '2'
-            if (not mode or mode.isspace() ):
-                mode = '0'
-                break
-            elif (mode.isdecimal()):
-                if (int(mode)>=0 or int(mode)<=2):
-                    #print(f'Open {modes[int(mode)-1]} Shell')
-                    break
-            elif mode == 'q' or bool(match(mode, 'qqq+')):
+            if mode == 'q' or bool(match(mode, 'qqq+')):
                 exit()
+            elif (mode.isdigit() and int(mode) in dict_mode.keys()):
+                if (int(mode)==2):
+                    serverIP = input("Server IP: ")
+            else:   # do nothing
+                continue
+
 
     if (int(mode)==1): 
         serverShell().cmdloop()
     elif (int(mode)==2): 
-        clientShell(args.ip).cmdloop()
+        clientShell(serverIP).cmdloop()
     else: 
         shell().cmdloop()
 
