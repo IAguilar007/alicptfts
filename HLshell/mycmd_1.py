@@ -13,11 +13,12 @@ from io import StringIO
 from functools import wraps
 import argparse
 
-import msvcrt
+
 import threading
 
 from alicptfts import AlicptFTS, FTSState
-
+if ( 'win' in sys.platform ):
+    import msvcrt
 
 
 def toNum(x):
@@ -384,9 +385,12 @@ class clientShell(shell):
 
         while(not self.debug_mode):
             connect_thread = threading.Thread(target=self.do_connect, args=[self.server_ip])
-        
-            if(msvcrt.kbhit()):
-                pressed_key = msvcrt.getwch()
+            try:
+                if(msvcrt.kbhit()):
+                    pressed_key = msvcrt.getwch()
+            raise ModuleNotFoundError:
+                print('Client needs to be run in Window')
+                return
             if(pressed_key == EXIT):
                 self.debug_mode = True
                 break
