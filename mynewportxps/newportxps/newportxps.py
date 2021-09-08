@@ -125,6 +125,7 @@ class NewportXPS:
             self.read_systemini()
         except:
             print("Could not read system.ini!!!")
+            raise AttributeError('Cannot read system initialization file')
 
 
     def check_error(self, err, msg='', with_raise=True):
@@ -538,6 +539,8 @@ class NewportXPS:
             return
         ret, v_cur, a_cur, jt0_cur, jt1_cur = \
              self._xps.PositionerSGammaParametersGet(self._sid, stage)
+        if velo is None:
+            velo = v_cur
         if accl is None:
             accl = a_cur
         if min_jerktime is None:
@@ -546,6 +549,7 @@ class NewportXPS:
             max_jerktime = jt1_cur
         self._xps.PositionerSGammaParametersSet(self._sid, stage, velo, accl,
                                                 min_jerktime, max_jerktime)
+        return velo, accl
 
     @withConnectedXPS
     def abort_group(self, group=None):

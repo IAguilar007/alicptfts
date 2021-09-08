@@ -10,12 +10,16 @@ is recommend as the develop IDE. Other IDE supporting Git is also good to use.
 ## Installation & required package
 All are installed in Window.
 * Python3
-    * newportxps
     * pysftp
     * numpy
     * ntplib
+    * newportxps (optional)
 
-
+### Installation with Git
+```
+git clone https://github.com/shu-xiao/alicptfts.git
+git submodule update --init --recursive ## clone newportxps
+```
 ### Resource
 https://github.com/pyepics/newportxps
     

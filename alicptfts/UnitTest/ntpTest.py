@@ -44,24 +44,41 @@ def get_time_diff():
         return diff
 
     else: return None
+def get_multi_time_diff(num_trials):
+    diffs = []
+    for i in range(num_trials):
+        diff = get_time_diff()
+        diffs.append(diff)
 
-print(time.ctime(get_network_time()))
-print(get_time_diff())
+    return diffs
 
-print('#######################################################')
-dt = get_time_diff()
-print(dt)
-t1 = get_network_time() - dt
-print('START TIME:\t'+str(t1)+' |\t'+time.ctime(t1))
-time.sleep(1)
-t2 = get_network_time() - dt
-print('END TIME:\t'+str(t2)+' |\t'+time.ctime(t2))
+def network_latency_test(output='timestamp.dat'):
+    print(get_network_time())
+    print(time.time())
+    print(time.ctime(get_network_time()))
+    print(get_time_diff())
 
-fp = open("timestamp.dat", "a")
+    print('#######################################################')
+    dt = get_time_diff()
+    print(dt)
+    t1 = get_network_time() - dt
+    print('START TIME:\t'+str(t1)+' |\t'+time.ctime(t1))
+    time.sleep(1)
+    t2 = get_network_time() - dt
+    print('END TIME:\t'+str(t2)+' |\t'+time.ctime(t2))
 
-fp.write('#######################################################\n')
-fp.write(str(dt)+'\n')
-fp.write('START TIME:\t'+str(t1)+' |\t'+time.ctime(t1)+'\n')
-fp.write('END TIME:\t'+str(t2)+' |\t'+time.ctime(t2)+'\n')
+    fp = open(output, "a")
 
-fp.close()
+    fp.write('#######################################################\n')
+    fp.write(str(dt)+'\n')
+    fp.write('START TIME:\t'+str(t1)+' |\t'+time.ctime(t1)+'\n')
+    fp.write('END TIME:\t'+str(t2)+' |\t'+time.ctime(t2)+'\n')
+
+    fp.close()
+
+def main():
+    difs = get_multi_time_diff(10)
+    print(difs)
+
+if __name__ == '__main__':
+    main()
